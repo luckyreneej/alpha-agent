@@ -1,0 +1,995 @@
+{
+    "factor_analysis": {
+        "AAPL": {
+            "factor_metrics": {
+                "Golden_Cross": {
+                    "distribution": {
+                        "mean": 0.8849206349206349,
+                        "std": 0.3197527581513755,
+                        "skew": -2.4268750783773716,
+                        "kurtosis": 3.920777671999269
+                    },
+                    "stability": 0.9804017378866586,
+                    "predictive_power": {
+                        "information_coefficient": 0.5556161139919196,
+                        "information_ratio": 26.188319371703212,
+                        "hit_rate": 0.876984126984127
+                    }
+                },
+                "RSI": {
+                    "distribution": {
+                        "mean": 50.0,
+                        "std": 0.0,
+                        "skew": 0.0,
+                        "kurtosis": 0.0
+                    },
+                    "stability": 0,
+                    "predictive_power": {
+                        "information_coefficient": 0,
+                        "information_ratio": 27.534162516293975,
+                        "hit_rate": 0.0
+                    }
+                },
+                "MACD": {
+                    "distribution": {
+                        "mean": 1.6865953555930894e+41,
+                        "std": 1.536617798992578e+42,
+                        "skew": 11.731999883595595,
+                        "kurtosis": 149.59201784433756
+                    },
+                    "stability": 0.9999902121674628,
+                    "predictive_power": {
+                        "information_coefficient": 0.18974330745427545,
+                        "information_ratio": 1.7390743620947056,
+                        "hit_rate": 0.027777777777777776
+                    }
+                },
+                "Alpha1": {
+                    "distribution": {
+                        "mean": 0.5020576131687243,
+                        "std": 0.2892685065150613,
+                        "skew": 0.0,
+                        "kurtosis": -1.2000000000000002
+                    },
+                    "stability": 0.9999932261971748,
+                    "predictive_power": {
+                        "information_coefficient": 0.9976184904784159,
+                        "information_ratio": 18.13013014738466,
+                        "hit_rate": 0.47619047619047616
+                    }
+                },
+                "Alpha2": {
+                    "distribution": {
+                        "mean": -3.827038028796305e+39,
+                        "std": 4.670049690047296e+40,
+                        "skew": -14.577638308630725,
+                        "kurtosis": 218.02566157453563
+                    },
+                    "stability": 0.37994985138949944,
+                    "predictive_power": {
+                        "information_coefficient": -0.13939205469233026,
+                        "information_ratio": -1.2987262724002702,
+                        "hit_rate": 0.9047619047619048
+                    }
+                },
+                "Alpha3": {
+                    "distribution": {
+                        "mean": 0.5020242914979757,
+                        "std": 0.2892589069495745,
+                        "skew": 0.0,
+                        "kurtosis": -1.2
+                    },
+                    "stability": 0.9995840579739345,
+                    "predictive_power": {
+                        "information_coefficient": 0.9971758962168545,
+                        "information_ratio": 17.969443435938075,
+                        "hit_rate": 0.48412698412698413
+                    }
+                }
+            },
+            "factor_correlations": {
+                "Golden_Cross": {
+                    "Golden_Cross": 1.0,
+                    "RSI": NaN,
+                    "MACD": 0.03966021075574012,
+                    "Alpha1": 0.47602028558487763,
+                    "Alpha2": -0.01739093023014575,
+                    "Alpha3": 0.5130093561797202
+                },
+                "RSI": {
+                    "Golden_Cross": NaN,
+                    "RSI": NaN,
+                    "MACD": NaN,
+                    "Alpha1": NaN,
+                    "Alpha2": NaN,
+                    "Alpha3": NaN
+                },
+                "MACD": {
+                    "Golden_Cross": 0.03966021075574012,
+                    "RSI": NaN,
+                    "MACD": 1.0,
+                    "Alpha1": 0.1916195237159414,
+                    "Alpha2": -0.9129453865664436,
+                    "Alpha3": 0.19005309265622353
+                },
+                "Alpha1": {
+                    "Golden_Cross": 0.47602028558487763,
+                    "RSI": NaN,
+                    "MACD": 0.1916195237159414,
+                    "Alpha1": 1.0,
+                    "Alpha2": -0.14113768156404477,
+                    "Alpha3": 0.9996843301210597
+                },
+                "Alpha2": {
+                    "Golden_Cross": -0.01739093023014575,
+                    "RSI": NaN,
+                    "MACD": -0.9129453865664436,
+                    "Alpha1": -0.14113768156404477,
+                    "Alpha2": 1.0,
+                    "Alpha3": -0.1411589097371707
+                },
+                "Alpha3": {
+                    "Golden_Cross": 0.5130093561797202,
+                    "RSI": NaN,
+                    "MACD": 0.19005309265622353,
+                    "Alpha1": 0.9996843301210597,
+                    "Alpha2": -0.1411589097371707,
+                    "Alpha3": 1.0
+                }
+            },
+            "optimal_combinations": [
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "MACD"
+                    ],
+                    "correlation": 0.03966021075574012,
+                    "combined_ir": 27.927393733797917
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.1916195237159414,
+                    "combined_ir": 19.869204509479363
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.19005309265622353,
+                    "combined_ir": 19.70851779803278
+                }
+            ]
+        },
+        "MSFT": {
+            "factor_metrics": {
+                "Golden_Cross": {
+                    "distribution": {
+                        "mean": 0.8849206349206349,
+                        "std": 0.3197527581513755,
+                        "skew": -2.4268750783773716,
+                        "kurtosis": 3.920777671999269
+                    },
+                    "stability": 0.9804017378866586,
+                    "predictive_power": {
+                        "information_coefficient": 0.5608738684250061,
+                        "information_ratio": 26.310511597599287,
+                        "hit_rate": 0.8849206349206349
+                    }
+                },
+                "RSI": {
+                    "distribution": {
+                        "mean": 50.752314994819905,
+                        "std": 5.937890692458302,
+                        "skew": 7.803099052573631,
+                        "kurtosis": 59.411380749349675
+                    },
+                    "stability": 0.7454708979666487,
+                    "predictive_power": {
+                        "information_coefficient": -0.19520544103078086,
+                        "information_ratio": 27.76629481855493,
+                        "hit_rate": 0.023809523809523808
+                    }
+                },
+                "MACD": {
+                    "distribution": {
+                        "mean": 1.3301985735531871e+41,
+                        "std": 1.212998620056054e+42,
+                        "skew": 11.777222296374912,
+                        "kurtosis": 150.784508053715
+                    },
+                    "stability": 0.9999570881926563,
+                    "predictive_power": {
+                        "information_coefficient": 0.1983904302257042,
+                        "information_ratio": 1.730830730036415,
+                        "hit_rate": 0.03571428571428571
+                    }
+                },
+                "Alpha1": {
+                    "distribution": {
+                        "mean": 0.5020576131687243,
+                        "std": 0.2892685065150613,
+                        "skew": 0.0,
+                        "kurtosis": -1.2000000000000002
+                    },
+                    "stability": 1.0,
+                    "predictive_power": {
+                        "information_coefficient": 0.9973506333647064,
+                        "information_ratio": 18.16556968996346,
+                        "hit_rate": 0.47619047619047616
+                    }
+                },
+                "Alpha2": {
+                    "distribution": {
+                        "mean": 5.385179548875506e+39,
+                        "std": 1.061562024310194e+41,
+                        "skew": 14.792482086775028,
+                        "kurtosis": 224.02639165422707
+                    },
+                    "stability": -0.30015245644606425,
+                    "predictive_power": {
+                        "information_coefficient": -0.15056546357969472,
+                        "information_ratio": -1.2929796058441487,
+                        "hit_rate": 0.8968253968253969
+                    }
+                },
+                "Alpha3": {
+                    "distribution": {
+                        "mean": 0.5020242914979757,
+                        "std": 0.2892589069495745,
+                        "skew": 0.0,
+                        "kurtosis": -1.2
+                    },
+                    "stability": 0.9996146893634521,
+                    "predictive_power": {
+                        "information_coefficient": 0.9968073262040106,
+                        "information_ratio": 18.005777828188457,
+                        "hit_rate": 0.48412698412698413
+                    }
+                }
+            },
+            "factor_correlations": {
+                "Golden_Cross": {
+                    "Golden_Cross": 1.0,
+                    "RSI": -0.3520337984215314,
+                    "MACD": 0.03962471467819592,
+                    "Alpha1": 0.47602028558487763,
+                    "Alpha2": 0.010765553174676371,
+                    "Alpha3": 0.5128176486475154
+                },
+                "RSI": {
+                    "Golden_Cross": -0.3520337984215314,
+                    "RSI": 1.0,
+                    "MACD": -0.01394923881953423,
+                    "Alpha1": -0.2128685381166409,
+                    "Alpha2": NaN,
+                    "Alpha3": -0.20364292340323162
+                },
+                "MACD": {
+                    "Golden_Cross": 0.03962471467819592,
+                    "RSI": -0.01394923881953423,
+                    "MACD": 1.0,
+                    "Alpha1": 0.19144320966733905,
+                    "Alpha2": 0.8092085510100688,
+                    "Alpha3": 0.189754088214922
+                },
+                "Alpha1": {
+                    "Golden_Cross": 0.47602028558487763,
+                    "RSI": -0.2128685381166409,
+                    "MACD": 0.19144320966733905,
+                    "Alpha1": 1.0,
+                    "Alpha2": 0.08815937425071961,
+                    "Alpha3": 0.9996621288225856
+                },
+                "Alpha2": {
+                    "Golden_Cross": 0.010765553174676371,
+                    "RSI": NaN,
+                    "MACD": 0.8092085510100688,
+                    "Alpha1": 0.08815937425071961,
+                    "Alpha2": 1.0,
+                    "Alpha3": 0.08812958318913258
+                },
+                "Alpha3": {
+                    "Golden_Cross": 0.5128176486475154,
+                    "RSI": -0.20364292340323162,
+                    "MACD": 0.189754088214922,
+                    "Alpha1": 0.9996621288225856,
+                    "Alpha2": 0.08812958318913258,
+                    "Alpha3": 1.0
+                }
+            },
+            "optimal_combinations": [
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "RSI"
+                    ],
+                    "correlation": 0.3520337984215314,
+                    "combined_ir": 54.07680641615421
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.2128685381166409,
+                    "combined_ir": 45.93186450851839
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.20364292340323162,
+                    "combined_ir": 45.77207264674338
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "MACD"
+                    ],
+                    "correlation": 0.01394923881953423,
+                    "combined_ir": 29.497125548591345
+                },
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "MACD"
+                    ],
+                    "correlation": 0.03962471467819592,
+                    "combined_ir": 28.041342327635704
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.19144320966733905,
+                    "combined_ir": 19.896400419999875
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.189754088214922,
+                    "combined_ir": 19.736608558224873
+                }
+            ]
+        },
+        "AMZN": {
+            "factor_metrics": {
+                "Golden_Cross": {
+                    "distribution": {
+                        "mean": 0.8849206349206349,
+                        "std": 0.3197527581513755,
+                        "skew": -2.4268750783773716,
+                        "kurtosis": 3.920777671999269
+                    },
+                    "stability": 0.9804017378866586,
+                    "predictive_power": {
+                        "information_coefficient": 0.5533928465541215,
+                        "information_ratio": 26.369443151556787,
+                        "hit_rate": 0.876984126984127
+                    }
+                },
+                "RSI": {
+                    "distribution": {
+                        "mean": 50.38747876324115,
+                        "std": 4.340772276403768,
+                        "skew": 11.157473885177927,
+                        "kurtosis": 123.46951148088709
+                    },
+                    "stability": 0.4959808091698673,
+                    "predictive_power": {
+                        "information_coefficient": -0.12689524938717742,
+                        "information_ratio": 28.071663559430995,
+                        "hit_rate": 0.007936507936507936
+                    }
+                },
+                "MACD": {
+                    "distribution": {
+                        "mean": 2.675495844712595e+41,
+                        "std": 2.436751550131624e+42,
+                        "skew": 11.71692124539799,
+                        "kurtosis": 149.1775620547129
+                    },
+                    "stability": 0.9999987208762978,
+                    "predictive_power": {
+                        "information_coefficient": 0.18820932813268468,
+                        "information_ratio": 1.748218633928614,
+                        "hit_rate": 0.027777777777777776
+                    }
+                },
+                "Alpha1": {
+                    "distribution": {
+                        "mean": 0.5020576131687243,
+                        "std": 0.2892685065150613,
+                        "skew": 0.0,
+                        "kurtosis": -1.2000000000000002
+                    },
+                    "stability": 1.0,
+                    "predictive_power": {
+                        "information_coefficient": 0.9972140202293687,
+                        "information_ratio": 18.175254113913464,
+                        "hit_rate": 0.47619047619047616
+                    }
+                },
+                "Alpha2": {
+                    "distribution": {
+                        "mean": 2.9124829568651445e+39,
+                        "std": 7.469730431597076e+40,
+                        "skew": 2.971273324423549,
+                        "kurtosis": 97.04154144182877
+                    },
+                    "stability": -0.12626118009362886,
+                    "predictive_power": {
+                        "information_coefficient": -0.06916938136540444,
+                        "information_ratio": -0.6349626892807547,
+                        "hit_rate": 0.8888888888888888
+                    }
+                },
+                "Alpha3": {
+                    "distribution": {
+                        "mean": 0.5020242914979757,
+                        "std": 0.2892589069495745,
+                        "skew": 0.0,
+                        "kurtosis": -1.2
+                    },
+                    "stability": 0.9994286216363898,
+                    "predictive_power": {
+                        "information_coefficient": 0.996796488592278,
+                        "information_ratio": 18.013413315835827,
+                        "hit_rate": 0.48412698412698413
+                    }
+                }
+            },
+            "factor_correlations": {
+                "Golden_Cross": {
+                    "Golden_Cross": 1.0,
+                    "RSI": -0.24802630560437658,
+                    "MACD": 0.03967372757675063,
+                    "Alpha1": 0.47602028558487763,
+                    "Alpha2": 0.008274466460952874,
+                    "Alpha3": 0.5126259411153108
+                },
+                "RSI": {
+                    "Golden_Cross": -0.24802630560437658,
+                    "RSI": 1.0,
+                    "MACD": -0.009840128080416406,
+                    "Alpha1": -0.15129217194479,
+                    "Alpha2": NaN,
+                    "Alpha3": -0.1450877156265262
+                },
+                "MACD": {
+                    "Golden_Cross": 0.03967372757675063,
+                    "RSI": -0.009840128080416406,
+                    "MACD": 1.0,
+                    "Alpha1": 0.1916855149477837,
+                    "Alpha2": 0.6338202998436555,
+                    "Alpha3": 0.18895590645062796
+                },
+                "Alpha1": {
+                    "Golden_Cross": 0.47602028558487763,
+                    "RSI": -0.15129217194479,
+                    "MACD": 0.1916855149477837,
+                    "Alpha1": 1.0,
+                    "Alpha2": 0.06773323876918987,
+                    "Alpha3": 0.9995806920840418
+                },
+                "Alpha2": {
+                    "Golden_Cross": 0.008274466460952874,
+                    "RSI": NaN,
+                    "MACD": 0.6338202998436555,
+                    "Alpha1": 0.06773323876918987,
+                    "Alpha2": 1.0,
+                    "Alpha3": 0.06509381463751018
+                },
+                "Alpha3": {
+                    "Golden_Cross": 0.5126259411153108,
+                    "RSI": -0.1450877156265262,
+                    "MACD": 0.18895590645062796,
+                    "Alpha1": 0.9995806920840418,
+                    "Alpha2": 0.06509381463751018,
+                    "Alpha3": 1.0
+                }
+            },
+            "optimal_combinations": [
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "RSI"
+                    ],
+                    "correlation": 0.24802630560437658,
+                    "combined_ir": 54.44110671098778
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.15129217194479,
+                    "combined_ir": 46.246917673344456
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.1450877156265262,
+                    "combined_ir": 46.08507687526682
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "MACD"
+                    ],
+                    "correlation": 0.009840128080416406,
+                    "combined_ir": 29.81988219335961
+                },
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "MACD"
+                    ],
+                    "correlation": 0.03967372757675063,
+                    "combined_ir": 28.117661785485403
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.1916855149477837,
+                    "combined_ir": 19.923472747842077
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.18895590645062796,
+                    "combined_ir": 19.761631949764443
+                }
+            ]
+        },
+        "GOOGL": {
+            "factor_metrics": {
+                "Golden_Cross": {
+                    "distribution": {
+                        "mean": 0.8849206349206349,
+                        "std": 0.3197527581513755,
+                        "skew": -2.4268750783773716,
+                        "kurtosis": 3.920777671999269
+                    },
+                    "stability": 0.9804017378866586,
+                    "predictive_power": {
+                        "information_coefficient": 0.5505508490634298,
+                        "information_ratio": 26.160549144633173,
+                        "hit_rate": 0.876984126984127
+                    }
+                },
+                "RSI": {
+                    "distribution": {
+                        "mean": 50.35375801064439,
+                        "std": 3.963374480698207,
+                        "skew": 11.160584478394217,
+                        "kurtosis": 123.56317350051651
+                    },
+                    "stability": 0.495798601444553,
+                    "predictive_power": {
+                        "information_coefficient": -0.13427540202817143,
+                        "information_ratio": 27.72249750670631,
+                        "hit_rate": 0.007936507936507936
+                    }
+                },
+                "MACD": {
+                    "distribution": {
+                        "mean": 2.1759592331597727e+41,
+                        "std": 1.9840033539516517e+42,
+                        "skew": 11.699456540492484,
+                        "kurtosis": 148.6524261815599
+                    },
+                    "stability": 0.9999862569874094,
+                    "predictive_power": {
+                        "information_coefficient": 0.1819864630110869,
+                        "information_ratio": 1.7586904361571725,
+                        "hit_rate": 0.023809523809523808
+                    }
+                },
+                "Alpha1": {
+                    "distribution": {
+                        "mean": 0.5020576131687243,
+                        "std": 0.2892685065150613,
+                        "skew": 0.0,
+                        "kurtosis": -1.2000000000000002
+                    },
+                    "stability": 1.0,
+                    "predictive_power": {
+                        "information_coefficient": 0.9974883919389298,
+                        "information_ratio": 18.12933416854846,
+                        "hit_rate": 0.47619047619047616
+                    }
+                },
+                "Alpha2": {
+                    "distribution": {
+                        "mean": 8.980134900849106e+39,
+                        "std": 1.0008398005039138e+41,
+                        "skew": 13.20565968716314,
+                        "kurtosis": 186.39755098956383
+                    },
+                    "stability": 0.18104220655716025,
+                    "predictive_power": {
+                        "information_coefficient": 0.09696676982245034,
+                        "information_ratio": 0.8889308408191939,
+                        "hit_rate": 0.01984126984126984
+                    }
+                },
+                "Alpha3": {
+                    "distribution": {
+                        "mean": 0.5020242914979757,
+                        "std": 0.2892589069495745,
+                        "skew": 0.0,
+                        "kurtosis": -1.2
+                    },
+                    "stability": 0.9995258146270445,
+                    "predictive_power": {
+                        "information_coefficient": 0.996851232141837,
+                        "information_ratio": 17.966150749060873,
+                        "hit_rate": 0.48412698412698413
+                    }
+                }
+            },
+            "factor_correlations": {
+                "Golden_Cross": {
+                    "Golden_Cross": 1.0,
+                    "RSI": -0.24800361795046347,
+                    "MACD": 0.03962947597338803,
+                    "Alpha1": 0.47602028558487763,
+                    "Alpha2": 0.01904144179853997,
+                    "Alpha3": 0.5130093561797205
+                },
+                "RSI": {
+                    "Golden_Cross": -0.24800361795046347,
+                    "RSI": 1.0,
+                    "MACD": -0.009828253418881019,
+                    "Alpha1": -0.15127065225106998,
+                    "Alpha2": NaN,
+                    "Alpha3": -0.14569186114619595
+                },
+                "MACD": {
+                    "Golden_Cross": 0.03962947597338803,
+                    "RSI": -0.009828253418881019,
+                    "MACD": 1.0,
+                    "Alpha1": 0.19148351998457397,
+                    "Alpha2": 0.6473616716133268,
+                    "Alpha3": 0.1882957368470987
+                },
+                "Alpha1": {
+                    "Golden_Cross": 0.47602028558487763,
+                    "RSI": -0.15127065225106998,
+                    "MACD": 0.19148351998457397,
+                    "Alpha1": 1.0,
+                    "Alpha2": 0.15351064339966813,
+                    "Alpha3": 0.9996796914332926
+                },
+                "Alpha2": {
+                    "Golden_Cross": 0.01904144179853997,
+                    "RSI": NaN,
+                    "MACD": 0.6473616716133268,
+                    "Alpha1": 0.15351064339966813,
+                    "Alpha2": 1.0,
+                    "Alpha3": 0.15352864693948598
+                },
+                "Alpha3": {
+                    "Golden_Cross": 0.5130093561797205,
+                    "RSI": -0.14569186114619595,
+                    "MACD": 0.1882957368470987,
+                    "Alpha1": 0.9996796914332926,
+                    "Alpha2": 0.15352864693948598,
+                    "Alpha3": 1.0
+                }
+            },
+            "optimal_combinations": [
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "RSI"
+                    ],
+                    "correlation": 0.24800361795046347,
+                    "combined_ir": 53.883046651339484
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.15127065225106998,
+                    "combined_ir": 45.85183167525477
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.14569186114619595,
+                    "combined_ir": 45.688648255767184
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "MACD"
+                    ],
+                    "correlation": 0.009828253418881019,
+                    "combined_ir": 29.481187942863485
+                },
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "MACD"
+                    ],
+                    "correlation": 0.03962947597338803,
+                    "combined_ir": 27.919239580790347
+                },
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "Alpha2"
+                    ],
+                    "correlation": 0.01904144179853997,
+                    "combined_ir": 27.049479985452365
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.19148351998457397,
+                    "combined_ir": 19.888024604705635
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.1882957368470987,
+                    "combined_ir": 19.724841185218047
+                },
+                {
+                    "factors": [
+                        "Alpha1",
+                        "Alpha2"
+                    ],
+                    "correlation": 0.15351064339966813,
+                    "combined_ir": 19.018265009367653
+                },
+                {
+                    "factors": [
+                        "Alpha2",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.15352864693948598,
+                    "combined_ir": 18.855081589880065
+                }
+            ]
+        },
+        "META": {
+            "factor_metrics": {
+                "Golden_Cross": {
+                    "distribution": {
+                        "mean": 0.8849206349206349,
+                        "std": 0.3197527581513755,
+                        "skew": -2.4268750783773716,
+                        "kurtosis": 3.920777671999269
+                    },
+                    "stability": 0.9804017378866586,
+                    "predictive_power": {
+                        "information_coefficient": 0.5516317160434581,
+                        "information_ratio": 26.20935832145343,
+                        "hit_rate": 0.8849206349206349
+                    }
+                },
+                "RSI": {
+                    "distribution": {
+                        "mean": 51.56982866477978,
+                        "std": 8.219954868593009,
+                        "skew": 5.118319355890274,
+                        "kurtosis": 24.646023298499433
+                    },
+                    "stability": 0.8951670771282465,
+                    "predictive_power": {
+                        "information_coefficient": -0.281584891298984,
+                        "information_ratio": 28.146576362392565,
+                        "hit_rate": 0.04365079365079365
+                    }
+                },
+                "MACD": {
+                    "distribution": {
+                        "mean": 1.6486613636192282e+41,
+                        "std": 1.5000994925398926e+42,
+                        "skew": 11.708301293652676,
+                        "kurtosis": 148.9942782332835
+                    },
+                    "stability": 0.9999928078912889,
+                    "predictive_power": {
+                        "information_coefficient": 0.18785240223539407,
+                        "information_ratio": 1.7427321152678592,
+                        "hit_rate": 0.03571428571428571
+                    }
+                },
+                "Alpha1": {
+                    "distribution": {
+                        "mean": 0.5020576131687243,
+                        "std": 0.2892685065150613,
+                        "skew": 0.0,
+                        "kurtosis": -1.2000000000000002
+                    },
+                    "stability": 1.0,
+                    "predictive_power": {
+                        "information_coefficient": 0.9975602663537297,
+                        "information_ratio": 18.13329482195194,
+                        "hit_rate": 0.47619047619047616
+                    }
+                },
+                "Alpha2": {
+                    "distribution": {
+                        "mean": -1.1149380075938217e+39,
+                        "std": 1.0701119013025513e+40,
+                        "skew": -9.011490820341487,
+                        "kurtosis": 90.84992326249316
+                    },
+                    "stability": 0.1637947485344749,
+                    "predictive_power": {
+                        "information_coefficient": -0.11410116365282166,
+                        "information_ratio": -1.0096230904909527,
+                        "hit_rate": 0.9047619047619048
+                    }
+                },
+                "Alpha3": {
+                    "distribution": {
+                        "mean": 0.5020242914979757,
+                        "std": 0.2892589069495745,
+                        "skew": 0.0,
+                        "kurtosis": -1.2
+                    },
+                    "stability": 0.9996070770244082,
+                    "predictive_power": {
+                        "information_coefficient": 0.9967270583168295,
+                        "information_ratio": 17.968300477345416,
+                        "hit_rate": 0.4880952380952381
+                    }
+                }
+            },
+            "factor_correlations": {
+                "Golden_Cross": {
+                    "Golden_Cross": 1.0,
+                    "RSI": -0.5306396087957685,
+                    "MACD": 0.03971196465669221,
+                    "Alpha1": 0.47602028558487763,
+                    "Alpha2": -0.022110729066475383,
+                    "Alpha3": 0.5130093561797202
+                },
+                "RSI": {
+                    "Golden_Cross": -0.5306396087957685,
+                    "RSI": 1.0,
+                    "MACD": -0.021072741389938577,
+                    "Alpha1": -0.31344704645293225,
+                    "Alpha2": 0.011924715552315305,
+                    "Alpha3": -0.2963000813263634
+                },
+                "MACD": {
+                    "Golden_Cross": 0.03971196465669221,
+                    "RSI": -0.021072741389938577,
+                    "MACD": 1.0,
+                    "Alpha1": 0.19186651196406543,
+                    "Alpha2": -0.49993698442610773,
+                    "Alpha3": 0.18955272797791287
+                },
+                "Alpha1": {
+                    "Golden_Cross": 0.47602028558487763,
+                    "RSI": -0.31344704645293225,
+                    "MACD": 0.19186651196406543,
+                    "Alpha1": 1.0,
+                    "Alpha2": -0.17615286939908184,
+                    "Alpha3": 0.9996993822580026
+                },
+                "Alpha2": {
+                    "Golden_Cross": -0.022110729066475383,
+                    "RSI": 0.011924715552315305,
+                    "MACD": -0.49993698442610773,
+                    "Alpha1": -0.17615286939908184,
+                    "Alpha2": 1.0,
+                    "Alpha3": -0.1752497665177476
+                },
+                "Alpha3": {
+                    "Golden_Cross": 0.5130093561797202,
+                    "RSI": -0.2963000813263634,
+                    "MACD": 0.18955272797791287,
+                    "Alpha1": 0.9996993822580026,
+                    "Alpha2": -0.1752497665177476,
+                    "Alpha3": 1.0
+                }
+            },
+            "optimal_combinations": [
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.31344704645293225,
+                    "combined_ir": 46.2798711843445
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.2963000813263634,
+                    "combined_ir": 46.11487683973798
+                },
+                {
+                    "factors": [
+                        "RSI",
+                        "MACD"
+                    ],
+                    "correlation": 0.021072741389938577,
+                    "combined_ir": 29.889308477660425
+                },
+                {
+                    "factors": [
+                        "Golden_Cross",
+                        "MACD"
+                    ],
+                    "correlation": 0.03971196465669221,
+                    "combined_ir": 27.95209043672129
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha1"
+                    ],
+                    "correlation": 0.19186651196406543,
+                    "combined_ir": 19.876026937219798
+                },
+                {
+                    "factors": [
+                        "MACD",
+                        "Alpha3"
+                    ],
+                    "correlation": 0.18955272797791287,
+                    "combined_ir": 19.711032592613275
+                }
+            ]
+        }
+    },
+    "timestamp": "2025-02-27T11:12:37.935025",
+    "summary": {
+        "best_factors": {
+            "AAPL": "RSI",
+            "MSFT": "RSI",
+            "AMZN": "RSI",
+            "GOOGL": "RSI",
+            "META": "RSI"
+        },
+        "recommendations": {
+            "factor_selection": [
+                "Use factors with highest information ratio and hit rate",
+                "Combine uncorrelated factors with complementary strengths",
+                "Monitor factor stability over time using autocorrelation"
+            ],
+            "portfolio_construction": [
+                "Weight positions by factor signal strength and confidence",
+                "Diversify across factors with low cross-correlations",
+                "Adjust factor weights based on market regime"
+            ],
+            "risk_management": [
+                "Scale position sizes inversely with factor correlations",
+                "Use hit rates to determine stop-loss levels",
+                "Monitor factor decay and adjust holding periods accordingly"
+            ]
+        }
+    }
+}
