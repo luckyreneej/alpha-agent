@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Dict, List, Any, Optional, Union
 
-from utils.communication.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 from utils.communication.message import Message
 from models.alpha_selection.selection import AlphaSelector
 
@@ -89,12 +89,12 @@ class AlphaAgent(BaseAgent):
             signal = await self.generate_trading_signal(ticker, data)
 
             return Message(
-                sender=self.name,
-                receiver=message.sender,
+                sender_id=self.agent_id,
+                receiver_id=message.sender_id,
                 content={
                     'signal': signal,
                     'ticker': ticker,
                     'timestamp': datetime.now().isoformat()
                 },
-                correlation_id=message.message_id
+                correlation_id=message.id
             )

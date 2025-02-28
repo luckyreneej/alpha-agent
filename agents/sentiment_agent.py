@@ -1,6 +1,7 @@
 # Sentiment LLM Agent: Uses OpenAI API to analyze market sentiment
 from agents.base_agent import BaseAgent
-
+import logging
+import openai
 
 class SentimentLLMAgent(BaseAgent):
     def analyze_sentiment(self):

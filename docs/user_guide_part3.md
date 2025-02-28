@@ -422,7 +422,7 @@ To extend the Alpha-Agent system with custom agents, follow these steps:
 
 ```python
 # agents/sentiment_agent.py
-from utils.communication.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 import pandas as pd
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
@@ -484,7 +484,7 @@ sentiment_agent = SentimentAgent("sentiment_agent_1", communication_manager)
 sentiment_agent.start()
 
 # Use the agent (from another agent)
-from utils.communication.base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 trading_agent = BaseAgent("trading_agent_1", communication_manager)
 
