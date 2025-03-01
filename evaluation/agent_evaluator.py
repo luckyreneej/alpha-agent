@@ -288,26 +288,26 @@ class AgentEvaluator:
 
         # Win rate component (0-40 points)
         if 'win_rate' in metrics:
-            win_rate_score = min(40, metrics['win_rate'] * 40)
+            win_rate_score = min(40.0, metrics['win_rate'] * 40)
             score_components.append(win_rate_score)
 
         # Profit factor component (0-30 points)
         if 'profit_factor' in metrics:
             # Cap at profit factor of 3 for scoring purposes
-            capped_profit_factor = min(3, metrics['profit_factor'])
+            capped_profit_factor = min(3.0, metrics['profit_factor'])
             profit_factor_score = capped_profit_factor * 10
             score_components.append(profit_factor_score)
 
         # Return vs volatility component (0-30 points)
         if 'sharpe_ratio' in metrics:
             # Cap at Sharpe ratio of 3 for scoring purposes
-            capped_sharpe = min(3, metrics['sharpe_ratio'])
+            capped_sharpe = min(3.0, metrics['sharpe_ratio'])
             sharpe_score = capped_sharpe * 10
             score_components.append(sharpe_score)
 
         # Calculate overall score
         if score_components:
-            metrics['overall_score'] = float(sum(score_components))
+            metrics['overall_score'] = sum(score_components)
         else:
             metrics['overall_score'] = 0
 
@@ -408,7 +408,7 @@ class AgentEvaluator:
         if 'avg_response_time' in metrics:
             # Example: Penalize if average response time > 1 second
             if metrics['avg_response_time'] > 1000:  # Convert to ms
-                score -= min(30, (metrics['avg_response_time'] - 1000) / 100)
+                score -= min(30.0, (metrics['avg_response_time'] - 1000) / 100)
 
         # Penalize for communication imbalance
         if 'communication_matrix' in metrics:

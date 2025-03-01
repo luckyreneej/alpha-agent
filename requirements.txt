@@ -10,3 +10,5 @@ yaml~=0.2.5
 pyyaml~=6.0.2
 seaborn~=0.13.2
 networkx~=3.4.2
+dash~=2.14.2
+plotly~=5.24.1

@@ -11,13 +11,12 @@ tracking their impact and effectiveness over time with improved performance and 
 import os
 import json
 import pandas as pd
-import numpy as np
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import logging
 
 # Import utility modules
-from metrics_utils import normalize_metric, is_metric_better, calculate_time_window
+from metrics_utils import is_metric_better, calculate_time_window
 from data_cache import DataCache
 from visualization import plot_contribution_breakdown, plot_stacked_area_chart
 

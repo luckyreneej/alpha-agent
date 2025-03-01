@@ -11,17 +11,16 @@ with optimized memory usage and data processing.
 
 import time
 import numpy as np
-import pandas as pd
 import json
 import os
 import uuid
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union, Callable
+from datetime import datetime
+from typing import Dict, Any, Optional, Union
 from collections import deque
 
 # Import utility modules
-from metrics_utils import calculate_performance_score, sample_time_series
+from metrics_utils import sample_time_series
 from data_cache import DataCache
 
 # Configure logging
@@ -658,12 +657,12 @@ class AgentMetricsTracker:
         # Add system health score (0-100)
         if agent_count > 0:
             # Calculate health score based on error rate and response time
-            error_score = max(0, 100 - report['system_summary']['avg_error_rate'])
+            error_score = max(0.0, 100 - report['system_summary']['avg_error_rate'])
 
             # Convert response time to score (lower is better)
             # Assuming >2000ms is bad (0 points), <100ms is great (100 points)
             response_time = report['system_summary']['avg_response_time']
-            response_score = max(0, 100 - (response_time / 20))
+            response_score = max(0.0, 100 - (response_time / 20))
 
             # Overall score is weighted average
             health_score = (error_score * 0.7) + (response_score * 0.3)

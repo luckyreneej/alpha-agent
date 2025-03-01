@@ -10,11 +10,10 @@ with improved memory efficiency and performance.
 
 import os
 import json
-import pandas as pd
 import numpy as np
 import networkx as nx
-from typing import Dict, List, Any, Optional, Union, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+from datetime import datetime
 import logging
 from collections import defaultdict, Counter
 

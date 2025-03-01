@@ -20,16 +20,16 @@ import time
 # Dashboard libraries
 import dash
 from dash import dcc, html
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 # Import metrics collectors and analyzers
-from optimized_agent_metrics import AgentMetricsTracker
-from optimized_agent_evaluator import AgentEvaluator
-from optimized_contribution_analyzer import ContributionAnalyzer
-from optimized_performance_tracker import PerformanceTracker
+from agent_metrics import AgentMetricsTracker
+from agent_evaluator import AgentEvaluator
+from contribution_analyzer import ContributionAnalyzer
+from performance_tracker import PerformanceTracker
 from metrics_utils import sample_time_series, calculate_time_window
 
 # Configure logging
