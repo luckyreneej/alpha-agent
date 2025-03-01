@@ -58,10 +58,10 @@ start_system(config_path="path/to/custom_config.yaml")
 ```python
 # Run the prediction agent in standalone mode
 from agents.prediction_agent import PredictionAgent
-from utils.communication.communication_manager import CommunicationManager
+from utils.communication.unified_communication import UnifiedCommunicationManager
 
 # Initialize communication manager
-communicator = CommunicationManager()
+communicator = UnifiedCommunicationManager()
 communicator.start()
 
 # Create and start prediction agent

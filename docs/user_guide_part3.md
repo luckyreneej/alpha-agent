@@ -472,11 +472,11 @@ class SentimentAgent(BaseAgent):
 2. Initialize and use the agent:
 
 ```python
-from utils.communication.communication_manager import CommunicationManager
+from utils.communication.unified_communication import UnifiedCommunicationManager
 from agents.sentiment_agent import SentimentAgent
 
 # Initialize communication system
-communication_manager = CommunicationManager()
+communication_manager = UnifiedCommunicationManager()
 communication_manager.start()
 
 # Create sentiment agent

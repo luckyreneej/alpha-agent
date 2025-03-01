@@ -1,541 +1,335 @@
-import threading
-import copy
+from typing import Dict, List, Any, Optional, Union
+import uuid
+import datetime
 import json
-import os
-import time
-from typing import Dict, Any, Optional, List, Set, Callable
-import logging
+from enum import Enum
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
-class StateManager:
-    """
-    Manages shared state and memory for agents in the multi-agent system.
-    Provides persistence, versioning, and access control for agent states.
-    """
-    
-    def __init__(self, state_dir: str = 'data/agent_states'):
+class MessageType(Enum):
+    """Types of messages for agent communication."""
+    SYSTEM = "system"  # System messages
+    DATA = "data"  # Data transfer
+    REQUEST = "request"  # Request for information/action
+    RESPONSE = "response"  # Response to a request
+    COMMAND = "command"  # Command to execute
+    ERROR = "error"  # Error messages
+    BROADCAST = "broadcast"  # Broadcast to all agents
+    STATUS = "status"  # Status updates
+    RESULT = "result"  # Result of a command execution
+    REFLECTION = "reflection"  # Agent's reflection/reasoning
+    EVENT = "event"  # Event notification
+    QUERY = "query"  # Query for information
+    PROPOSE = "propose"  # Proposal of ideas or actions
+    FEEDBACK = "feedback"  # Feedback on actions/information
+    REASONING = "reasoning"  # Step-by-step reasoning process
+    SUMMARY = "summary"  # Summary of information
+
+
+class MessagePriority(Enum):
+    """Priority levels for messages."""
+    LOW = 0  # Low priority, can be delayed
+    NORMAL = 1  # Normal priority
+    HIGH = 2  # High priority
+    CRITICAL = 3  # Critical priority, process immediately
+
+
+class Message:
+    """A structured message for agent communication."""
+
+    def __init__(self,
+                 sender_id: str,
+                 receiver_id: Optional[str],
+                 message_type: MessageType,
+                 content: Any,
+                 correlation_id: Optional[str] = None,
+                 reply_to: Optional[str] = None,
+                 metadata: Optional[Dict[str, Any]] = None,
+                 priority: MessagePriority = MessagePriority.NORMAL):
         """
-        Initialize the state manager.
-        
+        Initialize a message.
+
         Args:
-            state_dir: Directory for persistent storage of agent states
+            sender_id: ID of the sending agent
+            receiver_id: ID of the receiving agent, or None for broadcast
+            message_type: Type of message (system, data, request, etc.)
+            content: Message payload
+            correlation_id: ID to correlate related messages
+            reply_to: ID of the message this is replying to
+            metadata: Additional message metadata
+            priority: Message priority level
         """
-        self.state_dir = state_dir
-        os.makedirs(state_dir, exist_ok=True)
-        
-        # Global shared state
-        self.global_state: Dict[str, Any] = {}
-        
-        # Per-agent states
-        self.agent_states: Dict[str, Dict[str, Any]] = {}
-        
-        # Memory stores for agents
-        self.memory_stores: Dict[str, List[Dict[str, Any]]] = {}
-        
-        # Working memory for ongoing reasoning
-        self.working_memory: Dict[str, Dict[str, Any]] = {}
-        
-        # Shared knowledge base
-        self.knowledge_base: Dict[str, Any] = {}
-        
-        # Access control - which agents can access which state keys
-        self.access_control: Dict[str, Set[str]] = {}  # key -> set of agent_ids
-        
-        # State versioning
-        self.state_versions: Dict[str, int] = {}  # key -> version
-        
-        # Locks for thread safety
-        self.global_lock = threading.RLock()
-        self.agent_locks: Dict[str, threading.RLock] = {}
-        
-        # Event handlers for state changes
-        self.state_change_handlers: Dict[str, List[Callable]] = {}  # key -> list of handlers
-        
-        # Load any persisted state
-        self._load_persisted_state()
-    
-    def initialize_agent_state(self, agent_id: str, initial_state: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Initialize state for a new agent.
-        
-        Args:
-            agent_id: Unique agent identifier
-            initial_state: Initial state dictionary
-        """
-        with self.global_lock:
-            # Create agent lock if doesn't exist
-            if agent_id not in self.agent_locks:
-                self.agent_locks[agent_id] = threading.RLock()
-            
-            with self.agent_locks[agent_id]:
-                # Initialize agent state
-                self.agent_states[agent_id] = initial_state or {}
-                
-                # Initialize memory store
-                self.memory_stores[agent_id] = []
-                
-                # Initialize working memory
-                self.working_memory[agent_id] = {}
-                
-                logger.info(f"Initialized state for agent {agent_id}")
-    
-    def cleanup_agent_state(self, agent_id: str) -> None:
-        """
-        Clean up state when an agent is removed.
-        
-        Args:
-            agent_id: Unique agent identifier
-        """
-        with self.global_lock:
-            if agent_id in self.agent_states:
-                # First persist any important state
-                self._persist_agent_state(agent_id)
-                
-                # Remove from dictionaries
-                del self.agent_states[agent_id]
-                
-                if agent_id in self.memory_stores:
-                    del self.memory_stores[agent_id]
-                
-                if agent_id in self.working_memory:
-                    del self.working_memory[agent_id]
-                
-                if agent_id in self.agent_locks:
-                    del self.agent_locks[agent_id]
-                
-                # Remove from access control
-                for key, agents in self.access_control.items():
-                    if agent_id in agents:
-                        agents.remove(agent_id)
-                
-                logger.info(f"Cleaned up state for agent {agent_id}")
-    
-    def update_global_state(self, key: str, value: Any, agent_id: Optional[str] = None) -> None:
-        """
-        Update a value in the global state.
-        
-        Args:
-            key: State key
-            value: New state value
-            agent_id: If provided, checks access control
-        """
-        with self.global_lock:
-            # Check access control if agent_id is provided
-            if agent_id is not None:
-                if key in self.access_control and agent_id not in self.access_control[key]:
-                    logger.warning(f"Agent {agent_id} attempted to update global state key {key} without permission")
-                    return
-            
-            # Update the state
-            old_value = self.global_state.get(key)
-            self.global_state[key] = copy.deepcopy(value)  # Deep copy to prevent modification by reference
-            
-            # Update version
-            if key not in self.state_versions:
-                self.state_versions[key] = 1
+        self.id = str(uuid.uuid4())
+        self.sender_id = sender_id
+        self.receiver_id = receiver_id
+        self.message_type = message_type
+        self.content = content
+        self.correlation_id = correlation_id or self.id
+        self.reply_to = reply_to
+        self.metadata = metadata or {}
+        self.timestamp = datetime.datetime.now().isoformat()
+        self.priority = priority
+        self.processed = False
+        self.retries = 0
+        self.max_retries = 3
+        self.expiration = None  # Optional expiration time
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert message to dictionary representation."""
+        return {
+            "id": self.id,
+            "sender_id": self.sender_id,
+            "receiver_id": self.receiver_id,
+            "message_type": self.message_type.value,
+            "content": self.content,
+            "correlation_id": self.correlation_id,
+            "reply_to": self.reply_to,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp,
+            "priority": self.priority.value,
+            "processed": self.processed,
+            "retries": self.retries,
+            "max_retries": self.max_retries,
+            "expiration": self.expiration
+        }
+
+    def to_json(self) -> str:
+        """Convert message to JSON string."""
+        return json.dumps(self.to_dict(), default=str)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Message':
+        """Create message from dictionary representation."""
+        # Convert string message type to enum
+        if isinstance(data["message_type"], str):
+            message_type = MessageType(data["message_type"])
+        else:
+            message_type = data["message_type"]
+
+        # Convert priority string to enum if needed
+        if "priority" in data:
+            if isinstance(data["priority"], str):
+                priority = MessagePriority(data["priority"])
+            elif isinstance(data["priority"], int):
+                priority = MessagePriority(data["priority"])
             else:
-                self.state_versions[key] += 1
-            
-            # Notify change handlers
-            self._notify_state_change(key, old_value, value)
-            
-            # Persist important global states
-            # Currently we only persist after all updates, not on each change
-            # self._persist_global_state()
-    
-    def get_global_state(self, key: str, agent_id: Optional[str] = None, default: Any = None) -> Any:
-        """
-        Get a value from the global state.
-        
-        Args:
-            key: State key
-            agent_id: If provided, checks access control
-            default: Default value if key doesn't exist
-            
-        Returns:
-            State value or default
-        """
-        with self.global_lock:
-            # Check access control if agent_id is provided
-            if agent_id is not None:
-                if key in self.access_control and agent_id not in self.access_control[key]:
-                    logger.warning(f"Agent {agent_id} attempted to read global state key {key} without permission")
-                    return default
-            
-            # Return a deep copy to prevent modification by reference
-            value = self.global_state.get(key, default)
-            return copy.deepcopy(value)
-    
-    def update_agent_state(self, agent_id: str, key: str, value: Any) -> None:
-        """
-        Update a value in an agent's state.
-        
-        Args:
-            agent_id: Unique agent identifier
-            key: State key
-            value: New state value
-        """
-        with self.global_lock:
-            if agent_id not in self.agent_locks:
-                logger.warning(f"Agent {agent_id} not initialized")
-                return
-            
-            with self.agent_locks[agent_id]:
-                if agent_id not in self.agent_states:
-                    self.agent_states[agent_id] = {}
-                
-                # Update the state
-                old_value = self.agent_states[agent_id].get(key)
-                self.agent_states[agent_id][key] = copy.deepcopy(value)  # Deep copy to prevent modification by reference
-                
-                # Update version
-                state_key = f"{agent_id}.{key}"
-                if state_key not in self.state_versions:
-                    self.state_versions[state_key] = 1
-                else:
-                    self.state_versions[state_key] += 1
-    
-    def get_agent_state(self, agent_id: str, key: str, default: Any = None) -> Any:
-        """
-        Get a value from an agent's state.
-        
-        Args:
-            agent_id: Unique agent identifier
-            key: State key
-            default: Default value if key doesn't exist
-            
-        Returns:
-            State value or default
-        """
-        with self.global_lock:
-            if agent_id not in self.agent_states:
-                return default
-            
-            # Return a deep copy to prevent modification by reference
-            value = self.agent_states[agent_id].get(key, default)
-            return copy.deepcopy(value)
-    
-    def add_to_memory(self, agent_id: str, memory_item: Dict[str, Any]) -> None:
-        """
-        Add an item to an agent's memory store.
-        
-        Args:
-            agent_id: Unique agent identifier
-            memory_item: Memory item to add (should include timestamp)
-        """
-        with self.global_lock:
-            if agent_id not in self.memory_stores:
-                self.memory_stores[agent_id] = []
-            
-            # Add timestamp if not present
-            if 'timestamp' not in memory_item:
-                memory_item['timestamp'] = time.time()
-                
-            self.memory_stores[agent_id].append(copy.deepcopy(memory_item))
-            
-            # Limit memory size (keep only the most recent 1000 items by default)
-            max_memory_size = 1000
-            if len(self.memory_stores[agent_id]) > max_memory_size:
-                self.memory_stores[agent_id] = self.memory_stores[agent_id][-max_memory_size:]
-    
-    def get_memory(self, agent_id: str, query: Optional[Dict[str, Any]] = None, limit: int = 100) -> List[Dict[str, Any]]:
-        """
-        Get items from an agent's memory store, optionally filtered by a query.
-        
-        Args:
-            agent_id: Unique agent identifier
-            query: Filter query (dict with keys and values to match)
-            limit: Maximum number of items to return
-            
-        Returns:
-            List of memory items
-        """
-        with self.global_lock:
-            if agent_id not in self.memory_stores:
-                return []
-            
-            # Start with all memories
-            memories = self.memory_stores[agent_id]
-            
-            # Filter by query if provided
-            if query:
-                filtered_memories = []
-                for memory in memories:
-                    # Check if all query keys match
-                    if all(memory.get(key) == value for key, value in query.items()):
-                        filtered_memories.append(memory)
-                memories = filtered_memories
-            
-            # Return most recent up to limit
-            memories = sorted(memories, key=lambda x: x.get('timestamp', 0), reverse=True)
-            return copy.deepcopy(memories[:limit])
-    
-    def update_working_memory(self, agent_id: str, key: str, value: Any) -> None:
-        """
-        Update working memory for an agent's ongoing reasoning.
-        
-        Args:
-            agent_id: Unique agent identifier
-            key: Working memory key
-            value: New value
-        """
-        with self.global_lock:
-            if agent_id not in self.working_memory:
-                self.working_memory[agent_id] = {}
-            
-            self.working_memory[agent_id][key] = copy.deepcopy(value)
-    
-    def get_working_memory(self, agent_id: str, key: Optional[str] = None) -> Any:
-        """
-        Get working memory for an agent.
-        
-        Args:
-            agent_id: Unique agent identifier
-            key: Specific working memory key, or None for all
-            
-        Returns:
-            Working memory value or dict of all values
-        """
-        with self.global_lock:
-            if agent_id not in self.working_memory:
-                return {} if key is None else None
-            
-            if key is None:
-                return copy.deepcopy(self.working_memory[agent_id])
-            else:
-                return copy.deepcopy(self.working_memory[agent_id].get(key))
-    
-    def clear_working_memory(self, agent_id: str) -> None:
-        """
-        Clear all working memory for an agent.
-        
-        Args:
-            agent_id: Unique agent identifier
-        """
-        with self.global_lock:
-            if agent_id in self.working_memory:
-                self.working_memory[agent_id] = {}
-    
-    def update_knowledge_base(self, key: str, value: Any, agent_id: Optional[str] = None) -> None:
-        """
-        Update a value in the shared knowledge base.
-        
-        Args:
-            key: Knowledge key
-            value: New value
-            agent_id: If provided, checks access control
-        """
-        with self.global_lock:
-            # Check access control if agent_id is provided
-            if agent_id is not None:
-                kb_key = f"knowledge_base.{key}"
-                if kb_key in self.access_control and agent_id not in self.access_control[kb_key]:
-                    logger.warning(f"Agent {agent_id} attempted to update knowledge base key {key} without permission")
-                    return
-            
-            self.knowledge_base[key] = copy.deepcopy(value)
-    
-    def get_knowledge(self, key: str, agent_id: Optional[str] = None, default: Any = None) -> Any:
-        """
-        Get a value from the shared knowledge base.
-        
-        Args:
-            key: Knowledge key
-            agent_id: If provided, checks access control
-            default: Default value if key doesn't exist
-            
-        Returns:
-            Knowledge value or default
-        """
-        with self.global_lock:
-            # Check access control if agent_id is provided
-            if agent_id is not None:
-                kb_key = f"knowledge_base.{key}"
-                if kb_key in self.access_control and agent_id not in self.access_control[kb_key]:
-                    logger.warning(f"Agent {agent_id} attempted to read knowledge base key {key} without permission")
-                    return default
-            
-            return copy.deepcopy(self.knowledge_base.get(key, default))
-    
-    def set_access_control(self, key: str, agent_ids: List[str]) -> None:
-        """
-        Set access control for a state key.
-        
-        Args:
-            key: State key to control access to
-            agent_ids: List of agent IDs allowed to access this key
-        """
-        with self.global_lock:
-            self.access_control[key] = set(agent_ids)
-    
-    def register_state_change_handler(self, key: str, handler: Callable) -> None:
-        """
-        Register a handler to be called when a state key changes.
-        
-        Args:
-            key: State key to watch
-            handler: Function to call when state changes (handler(key, old_value, new_value))
-        """
-        with self.global_lock:
-            if key not in self.state_change_handlers:
-                self.state_change_handlers[key] = []
-            
-            self.state_change_handlers[key].append(handler)
-    
-    def unregister_state_change_handler(self, key: str, handler: Callable) -> None:
-        """
-        Unregister a state change handler.
-        
-        Args:
-            key: State key
-            handler: Handler to remove
-        """
-        with self.global_lock:
-            if key in self.state_change_handlers and handler in self.state_change_handlers[key]:
-                self.state_change_handlers[key].remove(handler)
-    
-    def _notify_state_change(self, key: str, old_value: Any, new_value: Any) -> None:
-        """
-        Notify handlers about a state change.
-        
-        Args:
-            key: State key that changed
-            old_value: Previous value
-            new_value: New value
-        """
-        if key in self.state_change_handlers:
-            for handler in self.state_change_handlers[key]:
-                try:
-                    handler(key, old_value, new_value)
-                except Exception as e:
-                    logger.error(f"Error in state change handler for {key}: {e}")
-    
-    def persist_all_states(self) -> None:
-        """
-        Persist all states to disk.
-        """
-        with self.global_lock:
-            self._persist_global_state()
-            
-            for agent_id in self.agent_states:
-                self._persist_agent_state(agent_id)
-            
-            # Persist knowledge base
-            self._persist_knowledge_base()
-            
-            logger.info("All states persisted to disk")
-    
-    def _persist_global_state(self) -> None:
-        """
-        Persist global state to disk.
-        """
-        state_file = os.path.join(self.state_dir, 'global_state.json')
-        
-        try:
-            with open(state_file, 'w') as f:
-                json.dump(self.global_state, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error persisting global state: {e}")
-    
-    def _persist_agent_state(self, agent_id: str) -> None:
-        """
-        Persist an agent's state to disk.
-        
-        Args:
-            agent_id: Unique agent identifier
-        """
-        if agent_id not in self.agent_states:
-            return
-        
-        # Create agent directory if it doesn't exist
-        agent_dir = os.path.join(self.state_dir, agent_id)
-        os.makedirs(agent_dir, exist_ok=True)
-        
-        # Persist agent state
-        state_file = os.path.join(agent_dir, 'state.json')
-        
-        try:
-            with open(state_file, 'w') as f:
-                json.dump(self.agent_states[agent_id], f, indent=2)
-        except Exception as e:
-            logger.error(f"Error persisting state for agent {agent_id}: {e}")
-        
-        # Persist agent memory
-        if agent_id in self.memory_stores:
-            memory_file = os.path.join(agent_dir, 'memory.json')
-            
-            try:
-                with open(memory_file, 'w') as f:
-                    json.dump(self.memory_stores[agent_id], f, indent=2)
-            except Exception as e:
-                logger.error(f"Error persisting memory for agent {agent_id}: {e}")
-    
-    def _persist_knowledge_base(self) -> None:
-        """
-        Persist knowledge base to disk.
-        """
-        kb_file = os.path.join(self.state_dir, 'knowledge_base.json')
-        
-        try:
-            with open(kb_file, 'w') as f:
-                json.dump(self.knowledge_base, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error persisting knowledge base: {e}")
-    
-    def _load_persisted_state(self) -> None:
-        """
-        Load persisted states from disk.
-        """
-        # Load global state
-        global_state_file = os.path.join(self.state_dir, 'global_state.json')
-        if os.path.exists(global_state_file):
-            try:
-                with open(global_state_file, 'r') as f:
-                    self.global_state = json.load(f)
-                logger.info("Loaded global state from disk")
-            except Exception as e:
-                logger.error(f"Error loading global state: {e}")
-        
-        # Load knowledge base
-        kb_file = os.path.join(self.state_dir, 'knowledge_base.json')
-        if os.path.exists(kb_file):
-            try:
-                with open(kb_file, 'r') as f:
-                    self.knowledge_base = json.load(f)
-                logger.info("Loaded knowledge base from disk")
-            except Exception as e:
-                logger.error(f"Error loading knowledge base: {e}")
-        
-        # Load agent states
-        for item in os.listdir(self.state_dir):
-            agent_dir = os.path.join(self.state_dir, item)
-            
-            if os.path.isdir(agent_dir):
-                agent_id = item
-                
-                # Load agent state
-                state_file = os.path.join(agent_dir, 'state.json')
-                if os.path.exists(state_file):
-                    try:
-                        with open(state_file, 'r') as f:
-                            self.agent_states[agent_id] = json.load(f)
-                            
-                        # Create agent lock
-                        self.agent_locks[agent_id] = threading.RLock()
-                        
-                        logger.info(f"Loaded state for agent {agent_id} from disk")
-                    except Exception as e:
-                        logger.error(f"Error loading state for agent {agent_id}: {e}")
-                
-                # Load agent memory
-                memory_file = os.path.join(agent_dir, 'memory.json')
-                if os.path.exists(memory_file):
-                    try:
-                        with open(memory_file, 'r') as f:
-                            self.memory_stores[agent_id] = json.load(f)
-                        logger.info(f"Loaded memory for agent {agent_id} from disk")
-                    except Exception as e:
-                        logger.error(f"Error loading memory for agent {agent_id}: {e}")
+                priority = data["priority"]
+        else:
+            priority = MessagePriority.NORMAL
+
+        msg = cls(
+            sender_id=data["sender_id"],
+            receiver_id=data.get("receiver_id"),
+            message_type=message_type,
+            content=data["content"],
+            correlation_id=data.get("correlation_id"),
+            reply_to=data.get("reply_to"),
+            metadata=data.get("metadata", {}),
+            priority=priority
+        )
+
+        # Set additional fields
+        if "id" in data:
+            msg.id = data["id"]
+        if "timestamp" in data:
+            msg.timestamp = data["timestamp"]
+        if "processed" in data:
+            msg.processed = data["processed"]
+        if "retries" in data:
+            msg.retries = data["retries"]
+        if "max_retries" in data:
+            msg.max_retries = data["max_retries"]
+        if "expiration" in data:
+            msg.expiration = data["expiration"]
+
+        return msg
+
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Message':
+        """Create message from JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
+    def create_reply(self,
+                     content: Any,
+                     message_type: Optional[MessageType] = None,
+                     metadata: Optional[Dict[str, Any]] = None) -> 'Message':
+        """Create a reply to this message."""
+        reply_type = message_type or MessageType.RESPONSE
+        if self.message_type == MessageType.REQUEST:
+            reply_type = MessageType.RESPONSE
+        elif self.message_type == MessageType.COMMAND:
+            reply_type = MessageType.RESULT
+
+        # Merge metadata with original metadata if provided
+        merged_metadata = self.metadata.copy()
+        if metadata:
+            merged_metadata.update(metadata)
+
+        return Message(
+            sender_id=self.receiver_id,  # Swap sender and receiver
+            receiver_id=self.sender_id,
+            message_type=reply_type,
+            content=content,
+            correlation_id=self.correlation_id,  # Keep same correlation ID
+            reply_to=self.id,  # Reference this message
+            metadata=merged_metadata
+        )
+
+    def is_expired(self) -> bool:
+        """Check if message has expired."""
+        if self.expiration is None:
+            return False
+
+        # Convert timestamp strings to datetime objects for comparison
+        if isinstance(self.expiration, str):
+            expiration_dt = datetime.datetime.fromisoformat(self.expiration)
+            now = datetime.datetime.now()
+            return now > expiration_dt
+        else:
+            # Assume it's a timestamp
+            return datetime.datetime.now().timestamp() > self.expiration
+
+    def increment_retry(self) -> bool:
+        """Increment retry count and check if max retries reached."""
+        self.retries += 1
+        return self.retries <= self.max_retries
+
+    def set_expiration(self, seconds: float) -> None:
+        """Set expiration time in seconds from now."""
+        expiration_time = datetime.datetime.now() + datetime.timedelta(seconds=seconds)
+        self.expiration = expiration_time.isoformat()
+
+    def mark_processed(self) -> None:
+        """Mark message as processed."""
+        self.processed = True
+
+    def __repr__(self) -> str:
+        return (f"Message(id={self.id}, type={self.message_type.value}, "
+                f"sender={self.sender_id}, receiver={self.receiver_id})")
+
+
+# Helper functions for creating specific types of messages
+
+def create_data_message(sender_id: str, receiver_id: str, data: Any,
+                        metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a data message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.DATA,
+        content=data,
+        metadata=metadata
+    )
+
+
+def create_request_message(sender_id: str, receiver_id: str, request: Any, request_type: str,
+                           metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a request message."""
+    if metadata is None:
+        metadata = {}
+    metadata['request_type'] = request_type
+
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.REQUEST,
+        content=request,
+        metadata=metadata
+    )
+
+
+def create_response_message(sender_id: str, receiver_id: str,
+                            response: Any, reply_to: str,
+                            correlation_id: str,
+                            metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a response message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.RESPONSE,
+        content=response,
+        correlation_id=correlation_id,
+        reply_to=reply_to,
+        metadata=metadata
+    )
+
+
+def create_broadcast_message(sender_id: str, content: Any, message_type: MessageType = MessageType.BROADCAST,
+                             metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a broadcast message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=None,  # None indicates broadcast
+        message_type=message_type,
+        content=content,
+        metadata=metadata
+    )
+
+
+def create_error_message(sender_id: str, receiver_id: str,
+                         error: str, reply_to: Optional[str] = None,
+                         correlation_id: Optional[str] = None,
+                         metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create an error message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.ERROR,
+        content=error,
+        correlation_id=correlation_id,
+        reply_to=reply_to,
+        metadata=metadata,
+        priority=MessagePriority.HIGH  # Errors get high priority
+    )
+
+
+def create_command_message(sender_id: str, receiver_id: str,
+                           command: Dict[str, Any],
+                           metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a command message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.COMMAND,
+        content=command,
+        metadata=metadata
+    )
+
+
+def create_status_message(sender_id: str, receiver_id: str,
+                          status: Dict[str, Any],
+                          metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a status update message."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.STATUS,
+        content=status,
+        metadata=metadata
+    )
+
+
+def create_reflection_message(sender_id: str, receiver_id: str,
+                              reflection: Any,
+                              metadata: Optional[Dict[str, Any]] = None) -> Message:
+    """Create a reflection message with agent's reasoning."""
+    return Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        message_type=MessageType.REFLECTION,
+        content=reflection,
+        metadata=metadata
+    )
+
+
+def create_system_message(content: Any, receiver_id: Optional[str] = None,
+                          metadata: Optional[Dict[str, Any]] = None,
+                          priority: MessagePriority = MessagePriority.HIGH) -> Message:
+    """Create a system message."""
+    return Message(
+        sender_id="system",
+        receiver_id=receiver_id,  # None for broadcast to all
+        message_type=MessageType.SYSTEM,
+        content=content,
+        metadata=metadata,
+        priority=priority  # System messages typically get high priority
+    )

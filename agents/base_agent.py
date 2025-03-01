@@ -4,7 +4,7 @@ import time
 import uuid
 
 from utils.communication.message import Message, MessageType
-from utils.communication.communication_manager import CommunicationManager
+from utils.communication.unified_communication import UnifiedCommunicationManager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -17,7 +17,7 @@ class BaseAgent:
     Provides communication capabilities and state management.
     """
 
-    def __init__(self, agent_id: str, communicator: CommunicationManager, coordinator=None):
+    def __init__(self, agent_id: str, communicator: UnifiedCommunicationManager, coordinator=None):
         """
         Initialize the agent.
 
