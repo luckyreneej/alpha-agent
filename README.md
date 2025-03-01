@@ -97,7 +97,7 @@ backtester.plot_trade_analysis()
 
 ```python
 # Evaluate alpha factors
-from models.alpha_selection.alpha_factors import AlphaFactors
+from models.signals.alpha_factors import AlphaFactors
 from utils.factor_evaluation.factor_analyzer import FactorAnalyzer
 
 # Calculate alpha factors
@@ -120,12 +120,14 @@ print(f"Best factors: {best_factors}")
 ### Adding Custom Alpha Factors
 
 ```python
-from models.alpha_selection.alpha_factors import AlphaFactors
+from models.signals.alpha_factors import AlphaFactors
+
 
 class ExtendedAlphaFactors(AlphaFactors):
     def custom_momentum(self, df):
         """Custom momentum alpha factor."""
         return df['close'].pct_change(20)  # 20-day momentum
+
 
 # Use your custom implementation
 my_factors = ExtendedAlphaFactors()

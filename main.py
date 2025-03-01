@@ -395,7 +395,7 @@ class AlphaAgentSystem:
             Returns:
                 Dictionary of trading signals
             """
-            from models.alpha_selection.alpha_factors import AlphaFactors
+            from models.signals.alpha_factors import AlphaFactors
 
             # Get parameters
             lookback = params.get('lookback', 60)  # Days of history to use

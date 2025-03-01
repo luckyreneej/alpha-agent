@@ -116,7 +116,8 @@ backtester.plot_portfolio_performance()
 Create your own alpha factors by extending the AlphaFactors class:
 
 ```python
-from models.alpha_selection.alpha_factors import AlphaFactors
+from models.signals.alpha_factors import AlphaFactors
+
 
 class CustomAlphaFactors(AlphaFactors):
     def my_custom_alpha(self, df):
