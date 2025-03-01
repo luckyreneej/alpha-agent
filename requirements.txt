@@ -8,3 +8,5 @@ scikit-learn~=1.5.0
 prophet~=1.1.5
 yaml~=0.2.5
 pyyaml~=6.0.2
+seaborn~=0.13.2
+networkx~=3.4.2
