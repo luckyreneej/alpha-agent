@@ -1,0 +1,83 @@
+classDiagram
+    class BacktestEngine {
+        +initial_capital: float
+        +capital: float
+        +positions: Dict
+        +trades: List
+        +metrics: Dict
+        +run_backtest(data, strategy, strategy_params)
+        -_execute_trade(symbol, signal, day_data)
+        -_calculate_portfolio_value(day_data)
+        -_calculate_metrics()
+        +plot_portfolio_performance(benchmark_data, save_path)
+        +export_results(output_dir)
+    }
+
+    class HistoricalDataFetcher {
+        +api: ApiClient
+        +cache_dir: str
+        +fetch_stock_history(tickers, start_date, end_date, timespan, use_cache)
+        +prepare_backtest_data(dataset, format_type, resample_freq)
+        +load_local_data(data_dir, tickers)
+    }
+
+    class PerformanceAnalyzer {
+        +annualization_factor: int
+        +calculate_metrics(returns, benchmark_returns, risk_free_rate)
+        +calculate_trade_metrics(trades_df)
+        -_calculate_total_return(returns)
+        -_calculate_annualized_return(returns)
+        -_calculate_volatility(returns)
+        -_calculate_sharpe_ratio(returns, risk_free_rate)
+        -_calculate_sortino_ratio(returns, risk_free_rate)
+        -_calculate_max_drawdown(returns)
+        +plot_returns_analysis(returns, benchmark_returns, save_path)
+    }
+
+    class PortfolioOptimizer {
+        +risk_free_rate: float
+        +optimize(returns, method, constraints)
+        -_optimize_equal_weight(returns)
+        -_optimize_max_sharpe(returns, constraints)
+        -_optimize_min_variance(returns, constraints)
+        -_optimize_risk_parity(returns, constraints)
+        -_calculate_portfolio_metrics(weights, returns)
+        +efficient_frontier(returns, points)
+    }
+
+    class Strategy {
+        +name: str
+        +parameters: Dict
+        +description: str
+        +generate_signals(data, current_date, positions)
+        +set_parameters(**kwargs)
+        +get_parameters()
+    }
+
+    class MovingAverageCrossStrategy {
+        +generate_signals(data, current_date, positions)
+    }
+
+    class RSIStrategy {
+        +generate_signals(data, current_date, positions)
+    }
+
+    class MACDStrategy {
+        +generate_signals(data, current_date, positions)
+    }
+
+    class CombinedStrategy {
+        +component_strategies: List
+        +component_weights: List
+        +generate_signals(data, current_date, positions)
+    }
+
+    BacktestEngine ..> Strategy : uses
+    BacktestEngine ..> PerformanceAnalyzer : can use
+    HistoricalDataFetcher --> BacktestEngine : provides data to
+    Strategy <|-- MovingAverageCrossStrategy : extends
+    Strategy <|-- RSIStrategy : extends
+    Strategy <|-- MACDStrategy : extends
+    Strategy <|-- CombinedStrategy : extends
+    CombinedStrategy o-- Strategy : contains
+    BacktestEngine ..> PortfolioOptimizer : can use
