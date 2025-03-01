@@ -1,0 +1,72 @@
+classDiagram
+    class StockPriceModel {
+        +model_name: str
+        +model_path: str
+        +model: any
+        +scaler_X: StandardScaler
+        +scaler_y: StandardScaler
+        +preprocess_data(df, target_col, sequence_length)
+        +save_model()
+        +load_model()
+        +evaluate(X_test, y_test)
+        +train(X, y)*
+        +predict(X)*
+    }
+
+    class LSTMModel {
+        +config: dict
+        +device: torch.device
+        +train(X, y)
+        +predict(X)
+        +save_model()
+        +load_model()
+    }
+
+    class XGBoostModel {
+        +config: dict
+        +train(X, y)
+        +predict(X)
+    }
+
+    class ProphetModel {
+        +config: dict
+        +preprocess_data(df, target_col)
+        +train(X, y)
+        +predict(X, periods, freq)
+        +save_model()
+        +load_model()
+    }
+
+    class EnsembleModel {
+        +config: dict
+        +models: dict
+        +train(X, y, df_raw)
+        +predict(X, df_prophet, periods)
+        +save_model()
+        +load_model()
+    }
+
+    class PyTorchLSTMModel {
+        +hidden_dim: int
+        +num_layers: int
+        +lstm: LSTM
+        +bn: BatchNorm1d
+        +dropout: Dropout
+        +fc: Linear
+        +forward(x)
+    }
+
+    class TechnicalIndicators {
+        +add_indicators(df)$
+        +calculate_alpha_factors(df)$
+    }
+
+    StockPriceModel <|-- LSTMModel
+    StockPriceModel <|-- XGBoostModel
+    StockPriceModel <|-- ProphetModel
+    StockPriceModel <|-- EnsembleModel
+    LSTMModel *-- PyTorchLSTMModel
+    StockPriceModel ..> TechnicalIndicators
+    EnsembleModel *-- LSTMModel
+    EnsembleModel *-- XGBoostModel
+    EnsembleModel *-- ProphetModel

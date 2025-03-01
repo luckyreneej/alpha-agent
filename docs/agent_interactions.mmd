@@ -1,0 +1,63 @@
+sequenceDiagram
+    participant User
+    participant DataAgent
+    participant SentimentAgent
+    participant PredictionAgent
+    participant SignalAgent
+    participant RiskAgent
+    participant Communicator as "UnifiedCommunicationManager"
+    
+    Note over User,Communicator: System Initialization
+    User->>DataAgent: Initialize system
+    DataAgent->>Communicator: Register agent
+    SentimentAgent->>Communicator: Register agent
+    PredictionAgent->>Communicator: Register agent
+    SignalAgent->>Communicator: Register agent
+    RiskAgent->>Communicator: Register agent
+    
+    Note over User,Communicator: Market Data Collection Phase
+    User->>DataAgent: Request market data
+    DataAgent->>DataAgent: Fetch stock data from Polygon API
+    DataAgent->>Communicator: Update data store (stock_data)
+    Communicator-->>PredictionAgent: Notify (stock_data_updated)
+    Communicator-->>SignalAgent: Notify (stock_data_updated)
+    
+    DataAgent->>DataAgent: Fetch news data
+    DataAgent->>Communicator: Update data store (news_data)
+    Communicator-->>SentimentAgent: Notify (news_data_updated)
+    
+    Note over User,Communicator: Sentiment Analysis Phase
+    SentimentAgent->>SentimentAgent: Analyze news sentiment with OpenAI
+    SentimentAgent->>Communicator: Update data store (sentiment_data)
+    
+    Note over User,Communicator: Price Prediction Phase
+    PredictionAgent->>Communicator: Get stock data
+    PredictionAgent->>PredictionAgent: Generate price predictions using ML models
+    PredictionAgent->>Communicator: Update data store (stock_price_prediction)
+    Communicator-->>SignalAgent: Notify (prediction_update)
+    
+    Note over User,Communicator: Signal Generation Phase
+    SignalAgent->>Communicator: Get stock data and predictions
+    SignalAgent->>SignalAgent: Calculate alpha factors
+    SignalAgent->>SignalAgent: Generate trading signals
+    SignalAgent->>Communicator: Publish to topic (trading_signals)
+    Communicator-->>RiskAgent: Deliver topic message (trading_signals)
+    
+    Note over User,Communicator: Risk Assessment Phase
+    RiskAgent->>Communicator: Get current positions
+    RiskAgent->>RiskAgent: Assess market risk
+    RiskAgent->>RiskAgent: Assess position-specific risk
+    RiskAgent->>Communicator: Update data store (risk_assessment)
+    
+    Note over User,Communicator: Trading Decision Phase
+    User->>DataAgent: Request trading recommendations
+    DataAgent->>Communicator: Get signals, predictions, sentiment and risk
+    DataAgent-->>User: Present comprehensive analysis
+    
+    opt If trade execution approved
+        User->>DataAgent: Execute trade
+        DataAgent->>Communicator: Update positions
+        Communicator-->>SignalAgent: Notify (position_update)
+        Communicator-->>RiskAgent: Notify (position_update)
+        DataAgent-->>User: Confirm trade execution
+    end
