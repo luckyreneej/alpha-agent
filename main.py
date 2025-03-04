@@ -9,7 +9,6 @@ import json
 # Import agent components
 from agents.data_agent import DataAgent
 from agents.prediction_agent import PredictionAgent
-from agents.trading_agent import TradingAgent
 from agents.risk_agent import RiskAgent
 from agents.sentiment_agent import SentimentAgent
 from utils.communication.unified_communication import UnifiedCommunicationManager
