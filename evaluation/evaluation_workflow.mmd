@@ -1,0 +1,48 @@
+sequenceDiagram
+    participant Agents as Agent System
+    participant AM as Agent Metrics
+    participant CM as Communication Metrics
+    participant AE as Agent Evaluator
+    participant CA as Contribution Analyzer
+    participant Dashboard
+
+    Note over Agents,Dashboard: Continuous Monitoring Workflow
+
+    Agents->>AM: Record metrics (success, errors, latency)
+    Agents->>CM: Record message exchanges
+
+    AM->>AM: Calculate performance metrics
+    CM->>CM: Process communication patterns
+
+    AM->>AE: Provide agent metrics data
+    CM->>AE: Provide communication data
+
+    AE->>AE: Evaluate system performance
+    AE->>CA: Provide performance data
+
+    CA->>CA: Calculate agent contributions
+
+    AM->>Dashboard: Update agent metrics
+    CM->>Dashboard: Update communication stats
+    AE->>Dashboard: Update system evaluation
+    CA->>Dashboard: Update contribution analysis
+
+    Dashboard->>Dashboard: Generate visualizations
+    Dashboard-->>Agents: Provide performance insights
+
+    Note over Agents,Dashboard: Anomaly Detection Workflow
+
+    AE->>AE: Monitor for anomalies
+
+    alt Anomaly Detected
+        AE->>Dashboard: Trigger alert
+        Dashboard-->>Agents: Display warning notification
+    end
+
+    Note over Agents,Dashboard: Performance Analysis Workflow
+
+    AM->>AM: Record historical data
+    CA->>CA: Track contribution history
+
+    AE->>AE: Generate performance report
+    Dashboard-->>Agents: Display performance report
