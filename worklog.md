@@ -9,6 +9,8 @@ Alpha-Agent is a multi-agent trading system that leverages AI to analyze financi
 ## Worklog (reversed order)
 ### 2025-03-06
 - start to deploy the project using cursor for quick debugging
+- fixed the market data fetch errors
+
 ### 2025-03-04
 - Optimizing communication & data agents logic
   - main.py optimizations
