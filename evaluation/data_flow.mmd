@@ -1,0 +1,75 @@
+flowchart TD
+    subgraph Agents
+        A1[Agent 1]
+        A2[Agent 2]
+        A3[Agent 3]
+    end
+
+    subgraph Metrics Collection
+        M1[Execution Time Tracking]
+        M2[Success/Error Tracking]
+        M3[Message Tracking]
+        M4[Prediction Tracking]
+    end
+
+    subgraph Data Processing
+        DP1[Data Cache]
+        DP2[Metrics Calculation]
+        DP3[Anomaly Detection]
+        DP4[Contribution Analysis]
+    end
+
+    subgraph Storage
+        S1[(Metrics Database)]
+        S2[File Storage]
+    end
+
+    subgraph Analysis
+        AN1{Performance Evaluation}
+        AN2{Communication Analysis}
+        AN3{Trend Detection}
+        AN4{Bottleneck Identification}
+    end
+
+    subgraph Visualization
+        V1[System Dashboard]
+        V2[Agent Performance Charts]
+        V3[Communication Network]
+        V4[Contribution Breakdown]
+    end
+
+    %% Data flow between components
+    A1 --> M1 & M2 & M3 & M4
+    A2 --> M1 & M2 & M3 & M4
+    A3 --> M1 & M2 & M3 & M4
+
+    M1 & M2 & M3 & M4 --> DP1
+    DP1 --> DP2 --> AN1
+    DP1 --> DP3 --> AN3
+    DP1 --> DP4 --> AN1
+
+    DP1 <==> S1
+    DP1 <==> S2
+
+    AN1 --> V1 & V2
+    AN2 --> V1 & V3
+    AN3 --> V1 & V2
+    AN4 --> V3
+
+    M3 --> AN2 --> V3
+    DP4 --> V4
+
+    %% Styles
+    classDef agents fill:#9C27B0,stroke:#333,stroke-width:1px,color:white;
+    classDef metrics fill:#4285F4,stroke:#333,stroke-width:1px,color:white;
+    classDef processing fill:#34A853,stroke:#333,stroke-width:1px,color:white;
+    classDef storage fill:#FBBC05,stroke:#333,stroke-width:1px,color:black;
+    classDef analysis fill:#FF9800,stroke:#333,stroke-width:1px,color:white;
+    classDef visualization fill:#EA4335,stroke:#333,stroke-width:1px,color:white;
+
+    class A1,A2,A3 agents;
+    class M1,M2,M3,M4 metrics;
+    class DP1,DP2,DP3,DP4 processing;
+    class S1,S2 storage;
+    class AN1,AN2,AN3,AN4 analysis;
+    class V1,V2,V3,V4 visualization;
