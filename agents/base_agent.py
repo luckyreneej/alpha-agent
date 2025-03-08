@@ -16,21 +16,27 @@ class BaseAgent:
     Provides core communication capabilities and state management.
     """
 
-    def __init__(self, config: dict, communicator: UnifiedCommunicationManager):
+    def __init__(self, agent_id_or_config, communicator):
         """
         Initialize the agent.
 
         Args:
-            config: Configuration dictionary
+            agent_id_or_config: Either a string agent_id or a configuration dictionary
             communicator: Communication manager for inter-agent messaging
         """
-        # Get agent type from class name
-        self.agent_type = self.__class__.__name__.lower()
-        # Remove 'agent' from the end if present
-        if self.agent_type.endswith('agent'):
-            self.agent_type = self.agent_type[:-5]
+        # Handle both initialization methods
+        if isinstance(agent_id_or_config, str):
+            self.agent_id = agent_id_or_config
+            self.config = {}
+        else:
+            self.config = agent_id_or_config
+            # Get agent type from class name if not provided
+            self.agent_type = self.__class__.__name__.lower()
+            # Remove 'agent' from the end if present
+            if self.agent_type.endswith('agent'):
+                self.agent_type = self.agent_type[:-5]
+            self.agent_id = f"{self.agent_type}_agent"
         
-        self.agent_id = f"{self.agent_type}_agent"
         self.communicator = communicator
         self.state = {}  # Agent's internal state
         self.running = False
@@ -48,10 +54,7 @@ class BaseAgent:
 
         # Add missing methods if they don't exist
         if not hasattr(self.communicator, 'subscribe_to_topic'):
-            logger.info(f"Adding compatibility method subscribe_to_topic to communicator")
-            def subscribe_to_topic(agent_id: str, topic: str) -> bool:
-                return self.communicator.subscribe(agent_id, topic)
-            self.communicator.subscribe_to_topic = subscribe_to_topic
+            setattr(self.communicator, 'subscribe_to_topic', lambda topic: None)
 
         if not hasattr(self.communicator, 'publish_to_topic'):
             logger.info(f"Adding compatibility method publish_to_topic to communicator")

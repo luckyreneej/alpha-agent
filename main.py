@@ -2,12 +2,12 @@ import argparse
 import logging
 import os
 import yaml
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
-import time
 import json
 import pandas as pd
 import traceback
+import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,13 +32,10 @@ from agents.prediction_agent import PredictionAgent
 from agents.risk_agent import RiskAgent
 from agents.sentiment_agent import SentimentAgent
 from agents.signal_agent import SignalAgent
-from utils.data.polygon_api import PolygonAPI
-from models.signals.alpha_factors import AlphaFactors
-from utils.communication.message import Message, MessageType, MessagePriority
+from utils.communication.message import Message, MessageType
 from backtest.historical_data_fetcher import HistoricalDataFetcher
 from backtest.backtest_engine import BacktestEngine
 from backtest.performance_metrics import PerformanceAnalyzer
-from backtest.portfolio_optimizer import PortfolioOptimizer
 from backtest.strategy import MovingAverageCrossStrategy, RSIStrategy, MACDStrategy, create_combined_strategy
 
 
@@ -64,6 +61,10 @@ def load_config(config_path='configs/config.yaml'):
 
     Returns:
         Dict containing configuration data
+        
+    Raises:
+        FileNotFoundError: If config file does not exist
+        Exception: If there is an error loading the config file
     """
     try:
         with open(config_path, 'r') as f:
@@ -74,33 +75,23 @@ def load_config(config_path='configs/config.yaml'):
             config['api_keys'] = {}
             
         # Handle API keys with environment variables taking precedence
-        config['api_keys']['openai'] = os.getenv('OPENAI_API_KEY') or config['api_keys'].get('openai', 'dummy_openai_key')
-        config['api_keys']['polygon'] = os.getenv('POLYGON_API_KEY') or config['api_keys'].get('polygon', 'dummy_polygon_key')
+        config['api_keys']['openai'] = os.getenv('OPENAI_API_KEY') or config['api_keys'].get('openai')
+        config['api_keys']['polygon'] = os.getenv('POLYGON_API_KEY') or config['api_keys'].get('polygon')
         
-        # Validate API keys but don't raise error
+        # Validate API keys
         missing_keys = []
         for key_name, key_value in config['api_keys'].items():
-            if not key_value or key_value.startswith('dummy_'):
+            if not key_value:
                 missing_keys.append(key_name)
         
         if missing_keys:
-            logger.warning(f"Using dummy keys: {', '.join(missing_keys)}")
+            raise ValueError(f"Missing required API keys: {', '.join(missing_keys)}")
         
         logger.info(f"Config loaded from {config_path}")
         return config
+        
     except FileNotFoundError:
-        logger.warning(f"Config not found at {config_path}, using defaults")
-        # Return default configuration
-        return {
-            'api_keys': {
-                'openai': os.getenv('OPENAI_API_KEY', 'dummy_openai_key'),
-                'polygon': os.getenv('POLYGON_API_KEY', 'dummy_polygon_key')
-            },
-            'system': {
-                'update_interval': 60,
-                'log_level': 'INFO'
-            }
-        }
+        raise FileNotFoundError(f"Config file not found at {config_path}")
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         raise
@@ -123,7 +114,7 @@ def setup_communication_framework():
     return unified_comm, conversation_manager
 
 
-def initialize_agents(config, unified_comm, conversation_manager):
+async def initialize_agents(config, unified_comm, conversation_manager):
     """
     Initialize all agents based on the configuration.
 
@@ -137,15 +128,38 @@ def initialize_agents(config, unified_comm, conversation_manager):
     """
     # Initialize all agents with the same communication manager
     data_agent = DataAgent(
-        agent_id="data_agent",
-        communicator=unified_comm,
-        api_key=config['api_keys']['polygon'],
-        config_path="configs/config.yaml"
+        config={
+            'api_key': config['api_keys']['polygon'],
+            'config_path': "configs/config.yaml"
+        },
+        communicator=unified_comm
     )
-    prediction_agent = PredictionAgent(config, unified_comm)
-    risk_agent = RiskAgent(config, unified_comm)
-    sentiment_agent = SentimentAgent(config, unified_comm)
-    signal_agent = SignalAgent(config, unified_comm)
+    
+    prediction_agent = PredictionAgent(
+        config=config,
+        communicator=unified_comm
+    )
+    
+    risk_agent = RiskAgent(
+        config={
+            'polygon_api_key': config['api_keys']['polygon']
+        },
+        communicator=unified_comm
+    )
+    
+    sentiment_agent = SentimentAgent(
+        config={
+            'api_key': config['api_keys']['openai'],
+            'polygon_api_key': config['api_keys']['polygon']
+        },
+        communicator=unified_comm
+    )
+    
+    signal_agent = SignalAgent(
+        agent_id="signal_agent",
+        config=config,
+        communicator=unified_comm
+    )
 
     # Put all agents into a dictionary
     agents = {
@@ -169,6 +183,11 @@ def initialize_agents(config, unified_comm, conversation_manager):
         logging.getLogger().setLevel(log_level)
         logger.info(f"Set logging level to {config['system']['log_level']}")
 
+    # Start all agents
+    for agent_id, agent in agents.items():
+        if hasattr(agent, 'start') and callable(agent.start):
+            await agent.start()
+
     logger.info("All agents initialized and registered with the communication framework.")
     return agents
 
@@ -182,35 +201,50 @@ def setup_agent_communication(unified_comm, agents, conversation_manager):
         agents: Dict of agent objects
         conversation_manager: ConversationManager instance
     """
-    # First ensure all agents are registered
-    for agent_id, agent in agents.items():
-        if not unified_comm.register_agent(agent_id, agent):
-            logger.error(f"Failed to register agent: {agent_id}")
-            continue
-        logger.info(f"Successfully registered agent: {agent_id}")
-
     # Define the communication topics
     topics = [
-        "market_data",
-        "predictions",
-        "risk_metrics",
-        "sentiment_analysis",
-        "trading_signals",
-        "system_status"
+        "market_data",          # Raw market data
+        "predictions",          # Price predictions
+        "risk_metrics",         # Risk assessments
+        "sentiment_analysis",   # Market sentiment
+        "trading_signals",      # Trading decisions
+        "system_status",        # System health and monitoring
+        "portfolio_updates"     # Portfolio changes and performance
     ]
 
     # Set up topics in the communication manager
     for topic in topics:
         unified_comm.create_topic(topic)
 
-    # Subscribe agents to relevant topics
+    # Define agent subscriptions
     subscriptions = {
-        "data_agent": ["market_data", "system_status"],
-        "prediction_agent": ["market_data", "predictions"],
-        "risk_agent": ["market_data", "predictions", "risk_metrics"],
-        "sentiment_agent": ["sentiment_analysis"],
-        "signal_agent": ["market_data", "predictions", "risk_metrics", 
-                        "sentiment_analysis", "trading_signals", "system_status"]
+        "data_agent": [
+            "market_data",
+            "system_status"
+        ],
+        "prediction_agent": [
+            "market_data",
+            "predictions",
+            "sentiment_analysis"
+        ],
+        "risk_agent": [
+            "market_data",
+            "predictions",
+            "portfolio_updates",
+            "trading_signals"
+        ],
+        "sentiment_agent": [
+            "market_data",
+            "sentiment_analysis"
+        ],
+        "signal_agent": [
+            "market_data",
+            "predictions",
+            "risk_metrics",
+            "sentiment_analysis",
+            "trading_signals",
+            "portfolio_updates"
+        ]
     }
 
     # Subscribe each agent to their topics
@@ -221,22 +255,39 @@ def setup_agent_communication(unified_comm, agents, conversation_manager):
             else:
                 logger.info(f"Successfully subscribed {agent_id} to topic: {topic}")
 
-    # Set up conversation flows in the conversation manager
-    market_analysis_id = conversation_manager.create_conversation(
-        initiator_id="data_agent",
-        participants=["data_agent", "prediction_agent", "risk_agent", "sentiment_agent"],
-        topic="market_analysis"
-    )
-    if not market_analysis_id:
-        logger.error("Failed to create market analysis conversation")
+    # Set up conversation flows
+    conversations = [
+        {
+            "name": "market_analysis",
+            "initiator": "data_agent",
+            "participants": ["data_agent", "prediction_agent", "risk_agent", "sentiment_agent"],
+            "description": "Analyze market conditions and generate predictions"
+        },
+        {
+            "name": "signal_analysis",
+            "initiator": "signal_agent",
+            "participants": ["prediction_agent", "risk_agent", "sentiment_agent", "signal_agent"],
+            "description": "Analyze signals and generate trading decisions based on all available information"
+        },
+        {
+            "name": "risk_assessment",
+            "initiator": "risk_agent",
+            "participants": ["risk_agent", "data_agent", "prediction_agent"],
+            "description": "Continuous risk monitoring and assessment"
+        }
+    ]
 
-    trading_decision_id = conversation_manager.create_conversation(
-        initiator_id="prediction_agent",
-        participants=["prediction_agent", "risk_agent", "sentiment_agent", "signal_agent"],
-        topic="trading_decision"
-    )
-    if not trading_decision_id:
-        logger.error("Failed to create trading decision conversation")
+    # Create conversations in the conversation manager
+    for conv in conversations:
+        conv_id = conversation_manager.create_conversation(
+            initiator_id=conv["initiator"],
+            participants=conv["participants"],
+            topic=conv["name"]
+        )
+        if not conv_id:
+            logger.error(f"Failed to create conversation: {conv['name']}")
+        else:
+            logger.info(f"Created conversation: {conv['name']}")
 
     logger.info("Inter-agent communication channels established")
 
@@ -366,13 +417,13 @@ def main():
         unified_comm, conversation_manager = setup_communication_framework()
 
         # Initialize the agents
-        agents = initialize_agents(config, unified_comm, conversation_manager)
+        agents = asyncio.run(initialize_agents(config, unified_comm, conversation_manager))
 
         # Run the appropriate mode
         if config['mode'] == 'live' or config['mode'] == 'paper':
-            run_live_trading(agents, config, unified_comm, conversation_manager)
+            asyncio.run(run_live_trading(agents, config, unified_comm, conversation_manager))
         elif config['mode'] == 'backtest':
-            run_backtest(agents, config, unified_comm, conversation_manager)
+            asyncio.run(run_backtest(agents, config, unified_comm, conversation_manager))
         else:
             logger.error(f"Invalid mode: {config['mode']}")
 
@@ -381,418 +432,313 @@ def main():
         raise
 
 
-def run_live_trading(agents, config, unified_comm, conversation_manager):
+async def run_live_trading(agents, config, unified_comm, conversation_manager):
     """
-    Run the system in live or paper trading mode.
+    Run live trading with multi-agent coordination.
 
     Args:
-        agents: Dictionary of agents
+        agents: Dictionary of initialized agents
         config: Configuration dictionary
         unified_comm: UnifiedCommunicationManager instance
         conversation_manager: ConversationManager instance
     """
-    # Extract the signal agent which coordinates the trading process
-    signal_agent = agents['signal_agent']
-
+    logger.info("Starting live trading session")
+    
+    # Extract trading parameters from config
+    trading_params = config.get('trading', {})
+    symbols = trading_params.get('symbols', ['AAPL', 'GOOGL', 'MSFT'])  # Default symbols if not specified
+    update_interval = trading_params.get('update_interval', 60)  # Default 60 seconds
+    risk_threshold = trading_params.get('risk_threshold', 0.7)  # Default risk threshold
+    
     try:
-        # Start all agent processes
-        for agent_name, agent in agents.items():
-            if hasattr(agent, 'start'):
-                agent.start()
-
-        # Publish system status message
-        status_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.STATUS,
-            content={
-                "status": "starting",
-                "mode": config['mode'],
-                "timestamp": time.time()
-            }
-        )
-        unified_comm.publish("system_status", status_message)
-
-        # Update config with current date
-        current_date = datetime.now().date()
-        if 'data' not in config:
-            config['data'] = {}
-        
-        # Calculate dates correctly - from 90 days ago to yesterday
-        end_date = current_date - timedelta(days=1)  # Use yesterday as end date
-        start_date = end_date - timedelta(days=90)   # Go back 90 days from end date
-        
-        config['data']['start_date'] = start_date.strftime('%Y-%m-%d')
-        config['data']['end_date'] = end_date.strftime('%Y-%m-%d')
-
-        # Create and start the market analysis conversation
-        market_analysis_id = conversation_manager.create_conversation(
-            initiator_id="data_agent",
-            participants=["data_agent", "prediction_agent", "risk_agent", "sentiment_agent"],
-            topic="market_analysis"
-        )
-        if market_analysis_id:
-            conversation_manager.start_conversation(
-                market_analysis_id,
-                {
-                    "action": "initialize",
-                    "config": {
-                        "mode": config['mode'],
-                        "tickers": config.get('data', {}).get('default_tickers', ['SPY', 'QQQ', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META']),
-                        "timespan": config.get('data', {}).get('default_timespan', 'day'),
-                        "start_date": config['data']['start_date'],
-                        "end_date": config['data']['end_date']
-                    }
-                }
-            )
-
-        # Create and start the trading decision conversation
-        trading_decision_id = conversation_manager.create_conversation(
-            initiator_id="prediction_agent",
-            participants=["prediction_agent", "risk_agent", "sentiment_agent", "signal_agent"],
-            topic="trading_decision"
-        )
-        if trading_decision_id:
-            conversation_manager.start_conversation(
-                trading_decision_id,
-                {
-                    "action": "initialize_trading",
-                    "config": {
-                        "mode": config['mode'],
-                        "risk_params": config['risk'],
-                        "trading_params": config['trading'],
-                        "start_date": config['data']['start_date'],
-                        "end_date": config['data']['end_date']
-                    }
-                }
-            )
-
-        # Start the signal agent's trading loop
-        signal_agent.run_trading_loop()
-
-    except KeyboardInterrupt:
-        logger.info("Trading system interrupted by user")
-        shutdown_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.STATUS,
-            content={"status": "shutdown_requested"}
-        )
-        unified_comm.publish("system_status", shutdown_message)
-    except Exception as e:
-        logger.error(f"Error in live trading: {e}")
-        error_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.ERROR,
-            content={"status": "error", "message": str(e)}
-        )
-        unified_comm.publish("system_status", error_message)
-    finally:
-        # Publish shutdown message
-        final_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.STATUS,
-            content={"status": "shutting_down"}
-        )
-        unified_comm.publish("system_status", final_message)
-
-        # Stop all agent processes
-        for agent_name, agent in agents.items():
-            if hasattr(agent, 'stop'):
-                agent.stop()
-
-        # Close communication channels
-        unified_comm.shutdown()
-        conversation_manager.shutdown()
-
-        logger.info("Trading system shutdown complete")
-
-
-def run_backtest(agents, config, unified_comm, conversation_manager):
-    """
-    Run the system in backtest mode.
-
-    Args:
-        agents: Dictionary of agents
-        config: Configuration dictionary
-        unified_comm: UnifiedCommunicationManager instance
-        conversation_manager: ConversationManager instance
-    """
-    try:
-        # Start the backtest
-        logger.info(f"Starting backtest for date: {config['backtest']['date']}")
-
-        # Initialize results storage
-        backtest_results = {
-            'metadata': {
-                'start_time': datetime.now().isoformat(),
-                'backtest_date': config['backtest']['date'],
-                'config': config,
-                'status': 'running'
-            },
-            'market_data': {},
-            'agent_results': {
-                'data_agent': {'data': {}, 'scores': {}, 'messages': []},
-                'prediction_agent': {'predictions': {}, 'scores': {}, 'messages': []},
-                'risk_agent': {'risk_metrics': {}, 'scores': {}, 'messages': []},
-                'sentiment_agent': {'sentiment_data': {}, 'scores': {}, 'messages': []},
-                'signal_agent': {'signals': {}, 'scores': {}, 'messages': []}
-            },
-            'conversations': {},
-            'performance': {},
-            'trades': [],
-            'errors': []
-        }
-
-        # Publish system status message
-        status_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.STATUS,
-            content={
-                "status": "starting_backtest",
-                "date": config['backtest']['date'],
-                "timestamp": datetime.now().isoformat()
-            }
-        )
-        unified_comm.publish("system_status", status_message)
-
-        # Initialize backtest components
-        data_fetcher = HistoricalDataFetcher(api_client=agents['data_agent'].api)
-        backtest_engine = BacktestEngine(
-            initial_capital=config.get('trading', {}).get('initial_capital', 100000),
-            commission=config.get('trading', {}).get('commission', 0.001),
-            slippage=config.get('trading', {}).get('slippage', 0.001),
-            lot_size=config.get('trading', {}).get('lot_size', 100),
-            leverage=config.get('trading', {}).get('leverage', 1.0),
-            risk_free_rate=config.get('backtest', {}).get('risk_free_rate', 0.02)
-        )
-
-        # Get backtest date range
-        backtest_date = datetime.strptime(config['backtest']['date'], '%Y-%m-%d').date()
-        current_date = datetime.now().date()
-
-        # Ensure we're not trying to backtest with future dates
-        if backtest_date > current_date:
-            logger.warning(f"Backtest date {backtest_date} is in the future. Using yesterday's date instead.")
-            backtest_date = current_date - timedelta(days=1)
-            config['backtest']['date'] = backtest_date.strftime('%Y-%m-%d')
-
-        # Calculate date range
-        end_date = min(backtest_date, current_date)  # Ensure end date is not in the future
-        start_date = end_date - timedelta(days=90)   # Go back 90 days from end date
-        
-        # Format dates as strings
-        start_date_str = start_date.strftime('%Y-%m-%d')
-        end_date_str = end_date.strftime('%Y-%m-%d')
-
-        # Get tickers from config
-        tickers = config.get('data', {}).get('default_tickers', ['SPY', 'QQQ', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META'])
-
-        # Fetch historical data
-        logger.info(f"Fetching historical data for {tickers} from {start_date_str} to {end_date_str}")
-        stock_data = data_fetcher.fetch_stock_history(
-            tickers=tickers,
-            start_date=start_date_str,
-            end_date=end_date_str,
-            timespan='day'
-        )
-
-        # Store market data
-        backtest_results['market_data'] = {
-            'raw_data': {ticker: data.to_dict('records') for ticker, data in stock_data.items()},
-            'metadata': {
-                'tickers': tickers,
-                'start_date': start_date_str,
-                'end_date': end_date_str,
-                'timespan': 'day'
-            }
-        }
-
-        # Create dataset and prepare for backtesting
-        dataset = {'stocks': stock_data}
-        backtest_data = data_fetcher.prepare_backtest_data(dataset, format_type='panel')
-
-        # Start the conversation flow for backtest initialization
-        market_analysis_id = conversation_manager.create_conversation(
-            initiator_id="data_agent",
-            participants=["data_agent", "prediction_agent", "risk_agent", "sentiment_agent"],
-            topic="market_analysis"
-        )
-        
-        if market_analysis_id:
-            # Store conversation ID
-            backtest_results['conversations']['market_analysis'] = market_analysis_id
+        while True:
+            for symbol in symbols:
+                try:
+                    # 1. Fetch market data
+                    market_data = await agents['data_agent'].fetch_stock_data(
+                        tickers=[symbol],
+                        timespan='hour',  # 使用小时级数据
+                        days_back=7  # 获取7天数据
+                    )
+                    await unified_comm.publish_to_topic('market_data', {
+                        'symbol': symbol,
+                        'data': market_data,
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    
+                    # 2. Get sentiment analysis
+                    sentiment_msg = Message(
+                        sender_id='system',
+                        receiver_id='sentiment_agent',
+                        content={
+                            'action': 'analyze_sentiment',
+                            'ticker': symbol,
+                            'force_update': True
+                        }
+                    )
+                    sentiment_result = await agents['sentiment_agent'].process_message(sentiment_msg)
+                    await unified_comm.publish_to_topic('sentiment_analysis', sentiment_result.content)
+                    
+                    # 3. Get price predictions
+                    prediction_msg = Message(
+                        sender_id='system',
+                        receiver_id='prediction_agent',
+                        content={
+                            'action': 'predict_price',
+                            'ticker': symbol,
+                            'market_data': market_data
+                        }
+                    )
+                    prediction_result = await agents['prediction_agent'].process_message(prediction_msg)
+                    await unified_comm.publish_to_topic('predictions', prediction_result.content)
+                    
+                    # 4. Assess risk
+                    risk_msg = Message(
+                        sender_id='system',
+                        receiver_id='risk_agent',
+                        content={
+                            'action': 'assess_market_risk',
+                            'ticker': symbol,
+                            'market_data': market_data,
+                            'predictions': prediction_result.content,
+                            'sentiment': sentiment_result.content
+                        }
+                    )
+                    risk_result = await agents['risk_agent'].process_message(risk_msg)
+                    await unified_comm.publish_to_topic('risk_metrics', risk_result.content)
+                    
+                    # 5. Generate trading signal
+                    signal_msg = Message(
+                        sender_id='system',
+                        receiver_id='signal_agent',
+                        content={
+                            'action': 'generate_signal',
+                            'ticker': symbol,
+                            'market_data': market_data,
+                            'predictions': prediction_result.content,
+                            'risk_metrics': risk_result.content,
+                            'sentiment': sentiment_result.content
+                        }
+                    )
+                    signal_result = await agents['signal_agent'].process_message(signal_msg)
+                    
+                    # 6. Execute trading decision if risk is acceptable
+                    risk_score = risk_result.content.get('market_risk_assessment', {}).get('overall_risk_score', 1.0)
+                    if risk_score < risk_threshold:
+                        await unified_comm.publish_to_topic('trading_signals', signal_result.content)
+                        # Execute trade based on signal
+                        if signal_result.content.get('signal') in ['buy', 'sell']:
+                            logger.info(f"Executing trade for {symbol}: {signal_result.content}")
+                            # Here you would implement actual trade execution
+                            # For now, we just log the decision
+                    else:
+                        logger.warning(f"Risk too high for {symbol}, skipping trade execution")
+                    
+                    # 7. Update portfolio status
+                    await unified_comm.publish_to_topic('portfolio_updates', {
+                        'symbol': symbol,
+                        'timestamp': datetime.now().isoformat(),
+                        'status': 'updated',
+                        'risk_score': risk_score,
+                        'signal': signal_result.content.get('signal')
+                    })
+                    
+                except Exception as e:
+                    logger.error(f"Error processing {symbol}: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    continue
             
-            # Start conversation and store initial message
-            init_message = {
-                "action": "initialize_backtest",
-                "backtest_date": config['backtest']['date'],
-                "config": config
-            }
-            conversation_manager.start_conversation(market_analysis_id, init_message)
-            backtest_results['agent_results']['data_agent']['messages'].append({
-                'conversation_id': market_analysis_id,
-                'content': init_message,
+            # Wait for next update interval
+            await asyncio.sleep(update_interval)
+            
+    except KeyboardInterrupt:
+        logger.info("Live trading session terminated by user")
+    except Exception as e:
+        logger.error(f"Live trading session terminated due to error: {str(e)}")
+        logger.error(traceback.format_exc())
+    finally:
+        # Clean up and save final status
+        try:
+            await unified_comm.publish_to_topic('system_status', {
+                'status': 'shutdown',
                 'timestamp': datetime.now().isoformat()
             })
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
 
-        # Initialize strategies
-        strategies = {
-            'ma_cross': MovingAverageCrossStrategy(
-                fast_period=config.get('strategy', {}).get('ma_fast', 50),
-                slow_period=config.get('strategy', {}).get('ma_slow', 200)
-            ),
-            'rsi': RSIStrategy(
-                period=config.get('strategy', {}).get('rsi_period', 14),
-                oversold=config.get('strategy', {}).get('rsi_oversold', 30),
-                overbought=config.get('strategy', {}).get('rsi_overbought', 70)
-            ),
-            'macd': MACDStrategy(
-                fast_period=config.get('strategy', {}).get('macd_fast', 12),
-                slow_period=config.get('strategy', {}).get('macd_slow', 26),
-                signal_period=config.get('strategy', {}).get('macd_signal', 9)
-            )
-        }
 
-        # Store strategy configurations
-        backtest_results['metadata']['strategies'] = {
-            name: strategy.get_parameters() for name, strategy in strategies.items()
-        }
+async def run_backtest(agents, config, unified_comm, conversation_manager):
+    """
+    Run backtest with multi-agent coordination.
 
-        # Create combined strategy
-        strategy = create_combined_strategy(list(strategies.values()))
-
-        # Run backtest
-        engine_results = backtest_engine.run_backtest(
-            data=backtest_data,
-            strategy=strategy.generate_signals
-        )
-
-        # Store trading results
-        backtest_results['trades'] = engine_results['trades'].to_dict('records') if not engine_results['trades'].empty else []
-
-        # Initialize performance analyzer
-        analyzer = PerformanceAnalyzer()
-
-        # Calculate benchmark returns if available
-        benchmark_returns = None
-        if 'SPY' in stock_data:
-            spy_data = stock_data['SPY']
-            spy_data['date'] = pd.to_datetime(spy_data['date'])
-            spy_data.set_index('date', inplace=True)
-            benchmark_returns = spy_data['close'].pct_change().dropna()
-
-        # Calculate performance metrics
-        portfolio_history = engine_results['portfolio_history']
-        portfolio_history['date'] = pd.to_datetime(portfolio_history['date'])
-        portfolio_history.set_index('date', inplace=True)
-        returns = portfolio_history['portfolio_value'].pct_change().dropna()
-
-        performance_metrics = analyzer.calculate_metrics(
-            returns=returns,
-            benchmark_returns=benchmark_returns,
-            risk_free_rate=config.get('backtest', {}).get('risk_free_rate', 0.02)
-        )
-
-        # Store performance results
-        backtest_results['performance'] = {
-            'portfolio_history': engine_results['portfolio_history'].to_dict('records'),
-            'metrics': {
-                **engine_results['metrics'],
-                **performance_metrics
-            },
-            'returns': returns.to_dict(),
-            'benchmark_returns': benchmark_returns.to_dict() if benchmark_returns is not None else None
-        }
-
-        # Update metadata
-        backtest_results['metadata']['end_time'] = datetime.now().isoformat()
-        backtest_results['metadata']['status'] = 'completed'
-
-        # Save results
-        output_dir = config.get('output', {}).get('results_dir', 'results')
-        os.makedirs(output_dir, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        results_file = os.path.join(output_dir, f"backtest_results_{timestamp}.json")
+    Args:
+        agents: Dictionary of initialized agents
+        config: Configuration dictionary
+        unified_comm: UnifiedCommunicationManager instance
+        conversation_manager: ConversationManager instance
+    """
+    logger.info("Starting backtest session")
+    
+    # Extract backtest parameters from config
+    backtest_params = config.get('backtest', {})
+    symbols = backtest_params.get('symbols', ['AAPL', 'GOOGL', 'MSFT'])
+    start_date = backtest_params.get('start_date', (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d'))
+    end_date = backtest_params.get('end_date', (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d'))
+    risk_threshold = backtest_params.get('risk_threshold', 0.7)
+    initial_capital = backtest_params.get('initial_capital', 100000)
+    
+    try:
+        # Initialize backtest components
+        data_fetcher = HistoricalDataFetcher(config['api_keys']['polygon'])
+        backtest_engine = BacktestEngine(initial_capital=initial_capital)
+        performance_analyzer = PerformanceAnalyzer()
         
-        with open(results_file, 'w') as f:
-            json.dump(backtest_results, f, indent=2)
+        # Store results for each symbol
+        results = {}
         
-        logger.info(f"Backtest results saved to {results_file}")
-
-        # Generate performance plots
-        plots_dir = config.get('output', {}).get('plots_dir', 'plots')
-        os.makedirs(plots_dir, exist_ok=True)
-        plot_file = os.path.join(plots_dir, f"backtest_performance_{timestamp}.png")
-        
-        analyzer.plot_returns_analysis(
-            returns=returns,
-            benchmark_returns=benchmark_returns,
-            save_path=plot_file
-        )
-        
-        logger.info(f"Performance plot saved to {plot_file}")
-
-        # Output key metrics
-        logger.info("\nPerformance Metrics:")
-        logger.info(f"Total Return: {backtest_results['performance']['metrics']['total_return']:.2%}")
-        logger.info(f"Annualized Return: {backtest_results['performance']['metrics']['annualized_return']:.2%}")
-        logger.info(f"Sharpe Ratio: {backtest_results['performance']['metrics']['sharpe_ratio']:.2f}")
-        logger.info(f"Max Drawdown: {backtest_results['performance']['metrics']['max_drawdown']:.2%}")
-        logger.info(f"Sortino Ratio: {backtest_results['performance']['metrics'].get('sortino_ratio', 'N/A')}")
-
-        if benchmark_returns is not None:
-            logger.info(f"Alpha: {backtest_results['performance']['metrics'].get('alpha', 'N/A'):.4f}")
-            logger.info(f"Beta: {backtest_results['performance']['metrics'].get('beta', 'N/A'):.4f}")
-
-        return backtest_results
-
-    except Exception as e:
-        logger.error(f"Error in backtest: {e}", exc_info=True)
-        error_message = Message(
-            sender_id="system",
-            receiver_id="system_status",
-            message_type=MessageType.ERROR,
-            content={
-                "status": "error",
-                "message": str(e)
-            }
-        )
-        unified_comm.publish("system_status", error_message)
-        
-        # Store error in results
-        if 'backtest_results' in locals():
-            backtest_results['metadata']['status'] = 'error'
-            backtest_results['metadata']['end_time'] = datetime.now().isoformat()
-            backtest_results['errors'].append({
-                'timestamp': datetime.now().isoformat(),
-                'error': str(e),
-                'traceback': traceback.format_exc()
-            })
-            
-            # Try to save partial results
+        for symbol in symbols:
             try:
-                output_dir = config.get('output', {}).get('results_dir', 'results')
-                os.makedirs(output_dir, exist_ok=True)
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                results_file = os.path.join(output_dir, f"backtest_results_error_{timestamp}.json")
+                logger.info(f"Starting backtest for {symbol}")
                 
-                with open(results_file, 'w') as f:
-                    json.dump(backtest_results, f, indent=2)
+                # 1. Fetch historical data
+                historical_data = await data_fetcher.fetch_historical_data(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date
+                )
                 
-                logger.info(f"Partial results saved to {results_file}")
-            except Exception as save_error:
-                logger.error(f"Failed to save partial results: {save_error}")
+                # Process each day in the historical data
+                for date, data in historical_data.iterrows():
+                    # 2. Get sentiment analysis for the date
+                    sentiment_msg = Message(
+                        sender_id='system',
+                        receiver_id='sentiment_agent',
+                        content={
+                            'action': 'analyze_sentiment',
+                            'ticker': symbol,
+                            'date': date.strftime('%Y-%m-%d')
+                        }
+                    )
+                    sentiment_result = await agents['sentiment_agent'].process_message(sentiment_msg)
+                    
+                    # 3. Get price predictions
+                    prediction_msg = Message(
+                        sender_id='system',
+                        receiver_id='prediction_agent',
+                        content={
+                            'action': 'predict_price',
+                            'ticker': symbol,
+                            'market_data': data.to_dict()
+                        }
+                    )
+                    prediction_result = await agents['prediction_agent'].process_message(prediction_msg)
+                    
+                    # 4. Assess risk
+                    risk_msg = Message(
+                        sender_id='system',
+                        receiver_id='risk_agent',
+                        content={
+                            'action': 'assess_market_risk',
+                            'ticker': symbol,
+                            'market_data': data.to_dict(),
+                            'predictions': prediction_result.content,
+                            'sentiment': sentiment_result.content
+                        }
+                    )
+                    risk_result = await agents['risk_agent'].process_message(risk_msg)
+                    
+                    # 5. Generate trading signal
+                    signal_msg = Message(
+                        sender_id='system',
+                        receiver_id='signal_agent',
+                        content={
+                            'action': 'generate_signal',
+                            'ticker': symbol,
+                            'market_data': data.to_dict(),
+                            'predictions': prediction_result.content,
+                            'risk_metrics': risk_result.content,
+                            'sentiment': sentiment_result.content
+                        }
+                    )
+                    signal_result = await agents['signal_agent'].process_message(signal_msg)
+                    
+                    # 6. Execute backtest trade if risk is acceptable
+                    risk_score = risk_result.content.get('market_risk_assessment', {}).get('overall_risk_score', 1.0)
+                    if risk_score < risk_threshold:
+                        signal = signal_result.content.get('signal')
+                        if signal in ['buy', 'sell']:
+                            # Execute trade in backtest engine
+                            backtest_engine.execute_trade(
+                                symbol=symbol,
+                                action=signal,
+                                price=data['close'],
+                                date=date,
+                                quantity=backtest_engine.calculate_position_size(
+                                    price=data['close'],
+                                    risk_score=risk_score
+                                )
+                            )
+                    
+                    # Update portfolio status for the day
+                    portfolio_status = backtest_engine.get_portfolio_status()
+                    await unified_comm.publish_to_topic('portfolio_updates', {
+                        'symbol': symbol,
+                        'date': date.strftime('%Y-%m-%d'),
+                        'status': 'updated',
+                        'portfolio': portfolio_status
+                    })
+                
+                # Calculate performance metrics for this symbol
+                symbol_performance = performance_analyzer.calculate_metrics(
+                    backtest_engine.get_trade_history(symbol),
+                    historical_data
+                )
+                results[symbol] = symbol_performance
+                
+                logger.info(f"Completed backtest for {symbol}")
+                
+            except Exception as e:
+                logger.error(f"Error in backtest for {symbol}: {str(e)}")
+                logger.error(traceback.format_exc())
+                continue
         
-        return {'error': str(e)}
+        # Generate and save final backtest report
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        report_path = os.path.join(
+            config.get('output', {}).get('results_dir', 'results'),
+            f'backtest_report_{timestamp}.json'
+        )
+        
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        
+        with open(report_path, 'w') as f:
+            json.dump({
+                'parameters': {
+                    'symbols': symbols,
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'initial_capital': initial_capital,
+                    'risk_threshold': risk_threshold
+                },
+                'results': results,
+                'portfolio_summary': backtest_engine.get_portfolio_summary(),
+                'timestamp': timestamp
+            }, f, indent=4)
+        
+        logger.info(f"Backtest report saved to {report_path}")
+        
+    except Exception as e:
+        logger.error(f"Backtest session terminated due to error: {str(e)}")
+        logger.error(traceback.format_exc())
     finally:
-        # Close communication channels
-        unified_comm.shutdown()
-        conversation_manager.shutdown()
-        logger.info("Backtest system shutdown complete")
+        # Clean up and save final status
+        try:
+            await unified_comm.publish_to_topic('system_status', {
+                'status': 'backtest_completed',
+                'timestamp': datetime.now().isoformat()
+            })
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
 
 
 if __name__ == '__main__':
