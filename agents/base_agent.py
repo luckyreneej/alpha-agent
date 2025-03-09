@@ -40,6 +40,7 @@ class BaseAgent:
         self.communicator = communicator
         self.state = {}  # Agent's internal state
         self.running = False
+        self._request_handlers = {}  # Store request handlers
         self._init_communicator_compat()
 
         # Note: We don't register here anymore, registration is handled in main.py
@@ -82,15 +83,17 @@ class BaseAgent:
                 return self.communicator.publish(message, "broadcast")
             self.communicator.broadcast_message = broadcast_message
 
-    def start(self) -> None:
+    async def start(self) -> None:
         """Start agent operation."""
         self.running = True
         logger.info(f"Agent {self.agent_id} started")
+        return self  # 返回 self 以支持异步操作
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """Stop agent operation."""
         self.running = False
         logger.info(f"Agent {self.agent_id} stopped")
+        return self  # 返回 self 以支持异步操作
 
     def send_message(self, receiver_id: str, message_type: Union[MessageType, str],
                     content: Any, metadata: Optional[dict] = None) -> str:
@@ -393,3 +396,31 @@ class BaseAgent:
             content: System message content
         """
         logger.debug(f"Agent {self.agent_id} received system message: {content}")
+
+    def register_request_handler(self, request_type: str, handler_func):
+        """Register a request handler function.
+
+        Args:
+            request_type: Type of request to handle
+            handler_func: Function to handle the request
+        """
+        if not self.communicator:
+            logger.error(f"Agent {self.agent_id} has no communicator")
+            return False
+
+        self._request_handlers[request_type] = handler_func
+        return self.communicator.register_request_handler(self.agent_id, request_type, handler_func)
+
+    def unregister_request_handler(self, request_type: str):
+        """Unregister a request handler function.
+
+        Args:
+            request_type: Type of request to unregister
+        """
+        if not self.communicator:
+            return False
+
+        if request_type in self._request_handlers:
+            del self._request_handlers[request_type]
+            return self.communicator.unregister_request_handler(self.agent_id, request_type)
+        return False

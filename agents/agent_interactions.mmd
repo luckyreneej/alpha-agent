@@ -18,46 +18,58 @@ sequenceDiagram
     Note over User,Communicator: Market Data Collection Phase
     User->>DataAgent: Request market data
     DataAgent->>DataAgent: Fetch stock data from Polygon API
-    DataAgent->>Communicator: Update data store (stock_data)
-    Communicator-->>PredictionAgent: Notify (stock_data_updated)
-    Communicator-->>SignalAgent: Notify (stock_data_updated)
+    DataAgent->>Communicator: Broadcast market data
+    par Data Distribution
+        Communicator-->>PredictionAgent: Market data for time series analysis
+        Communicator-->>SignalAgent: Market data for factor analysis
+        Communicator-->>RiskAgent: Market data for risk assessment
+        DataAgent->>SentimentAgent: News data for sentiment analysis
+    end
     
-    DataAgent->>DataAgent: Fetch news data
-    DataAgent->>Communicator: Update data store (news_data)
-    Communicator-->>SentimentAgent: Notify (news_data_updated)
+    Note over User,Communicator: Analysis Phase
+    par Parallel Analysis
+        SentimentAgent->>SentimentAgent: Analyze market sentiment
+        PredictionAgent->>PredictionAgent: Generate time series predictions
+        SignalAgent->>SignalAgent: Calculate alpha factors
+        RiskAgent->>RiskAgent: Assess market conditions
+    end
     
-    Note over User,Communicator: Sentiment Analysis Phase
-    SentimentAgent->>SentimentAgent: Analyze news sentiment with OpenAI
-    SentimentAgent->>Communicator: Update data store (sentiment_data)
+    Note over User,Communicator: Signal Integration Phase
+    SignalAgent->>Communicator: Request analysis results
+    par Signal Inputs
+        Communicator-->>SignalAgent: Sentiment analysis results
+        Communicator-->>SignalAgent: Time series predictions
+        Communicator-->>SignalAgent: Market risk assessment
+    end
     
-    Note over User,Communicator: Price Prediction Phase
-    PredictionAgent->>Communicator: Get stock data
-    PredictionAgent->>PredictionAgent: Generate price predictions using ML models
-    PredictionAgent->>Communicator: Update data store (stock_price_prediction)
-    Communicator-->>SignalAgent: Notify (prediction_update)
+    Note over User,Communicator: Decision Making Phase
+    SignalAgent->>SignalAgent: Generate alpha-based signals
+    SignalAgent->>RiskAgent: Request risk validation
+    RiskAgent->>RiskAgent: Validate against risk limits
+    RiskAgent-->>SignalAgent: Risk assessment results
     
-    Note over User,Communicator: Signal Generation Phase
-    SignalAgent->>Communicator: Get stock data and predictions
-    SignalAgent->>SignalAgent: Calculate alpha factors
-    SignalAgent->>SignalAgent: Generate trading signals
-    SignalAgent->>Communicator: Publish to topic (trading_signals)
-    Communicator-->>RiskAgent: Deliver topic message (trading_signals)
-    
-    Note over User,Communicator: Risk Assessment Phase
-    RiskAgent->>Communicator: Get current positions
-    RiskAgent->>RiskAgent: Assess market risk
-    RiskAgent->>RiskAgent: Assess position-specific risk
-    RiskAgent->>Communicator: Update data store (risk_assessment)
-    
-    Note over User,Communicator: Trading Decision Phase
-    User->>DataAgent: Request trading recommendations
-    DataAgent->>Communicator: Get signals, predictions, sentiment and risk
-    DataAgent-->>User: Present comprehensive analysis
+    Note over User,Communicator: Trading Execution Phase
+    SignalAgent->>Communicator: Publish trading signals
+    Communicator-->>User: Present trading recommendations
     
     opt If trade execution approved
         User->>DataAgent: Execute trade
-        DataAgent->>Communicator: Update positions
-        Communicator-->>SignalAgent: Notify (position_update)
-        Communicator-->>RiskAgent: Notify (position_update)
+        DataAgent->>Communicator: Broadcast position update
+        par Position Update Notification
+            Communicator-->>SignalAgent: Update factor exposure
+            Communicator-->>RiskAgent: Update risk exposure
+            Communicator-->>PredictionAgent: Update model inputs
+        end
         DataAgent-->>User: Confirm trade execution
+    end
+    
+    Note over User,Communicator: Continuous Monitoring
+    loop Market Hours
+        DataAgent->>Communicator: Stream market updates
+        par Real-time Updates
+            RiskAgent->>RiskAgent: Monitor risk limits
+            SignalAgent->>SignalAgent: Update factor signals
+            PredictionAgent->>PredictionAgent: Update predictions
+            SentimentAgent->>SentimentAgent: Update sentiment
+        end
     end

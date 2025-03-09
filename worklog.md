@@ -7,6 +7,10 @@ This document tracks the development progress of the Alpha-Agent trading system.
 Alpha-Agent is a multi-agent trading system that leverages AI to analyze financial markets, generate signals and provide professional trading suggestions for stock and options trading.
 
 ## Worklog (reversed order)
+### 2025-03-08
+- communication logic & agents
+- adding reasoning logics
+
 ### 2025-03-07
 - refactor the current models and add more models to the current prediction models (LSTM / Ensemble/ YOLO/ Transformers, etc.)
 - main function call optimization

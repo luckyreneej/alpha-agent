@@ -27,18 +27,25 @@ class SignalAgent(BaseAgent):
         signal_performance (dict): Performance tracking for signals
     """
 
-    def __init__(self, agent_id: str, communicator, config=None):
+    def __init__(self, agent_id_or_config, communicator=None, **kwargs):
         """Initialize the SignalAgent.
 
         Args:
-            agent_id: Unique agent identifier
+            agent_id_or_config: Either a string agent_id or a configuration dictionary
             communicator: Communication manager instance
-            config (dict, optional): Configuration settings
+            **kwargs: Additional configuration parameters including:
+                - trading_config: Trading-specific configuration
+                - base_config: Base configuration dictionary
         """
-        super().__init__(agent_id, communicator)
+        # Initialize base agent
+        super().__init__(agent_id_or_config, communicator)
 
-        # Default configuration
-        self.config = config or {
+        # Extract configuration
+        base_config = kwargs.get('base_config', {})
+        trading_config = kwargs.get('trading_config', {})
+        
+        # Merge configurations with defaults
+        self.config = {
             'alpha_weights': {
                 'alpha1': 0.2,
                 'alpha12': 0.3,
@@ -55,9 +62,13 @@ class SignalAgent(BaseAgent):
                 'strong_threshold': 0.7  # Threshold for strong signal classification
             }
         }
+        
+        # Update config with provided values
+        self.config.update(base_config)
+        self.config.update(trading_config)
 
-        # Initialize alpha factor engine with optional config path
-        alpha_config_path = config.get('alpha_config_path') if config else None
+        # Initialize alpha factor engine
+        alpha_config_path = self.config.get('alpha_config_path')
         self.alpha_factors = AlphaFactors(config_path=alpha_config_path)
 
         # Initialize signal tracking
@@ -103,6 +114,8 @@ class SignalAgent(BaseAgent):
         
         # Initialize performance analyzer
         self.performance_analyzer = PerformanceAnalyzer()
+        
+        logger.info(f"SignalAgent {self.agent_id} initialized successfully")
 
     def _register_data_handlers(self):
         """Register handlers for data updates from other agents."""

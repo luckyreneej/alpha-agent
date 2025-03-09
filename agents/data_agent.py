@@ -5,11 +5,13 @@ import threading
 import asyncio
 import pandas as pd
 import yaml
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Dict, List, Optional, Any, Tuple
 from utils.data.polygon_api import PolygonAPI
 from .base_agent import BaseAgent
 from utils.communication.message import Message, MessageType
+import numpy as np
+import time
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,10 +30,10 @@ def _load_config(config_path: Optional[str]) -> Dict[str, Any]:
     default_config = {
         'default_tickers': ['SPY', 'QQQ', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META'],
         'update_interval': 60,  # seconds
-        'data_history_days': 7,  # 减少历史数据天数，因为我们使用小时数据
+        'data_history_days': 90,  # 3个月的历史数据
         'news_limit': 100,
-        'options_enabled': False,  # Disable options data
-        'default_timespan': 'hour',  # 修改默认时间间隔为小时
+        'options_enabled': False,
+        'default_timespan': 'day',  # 修改为使用日线数据
         'data_storage': './data/market_data',
         'output': {
             'results_dir': 'results'
@@ -61,46 +63,50 @@ class DataAgent(BaseAgent):
     Handles data requests from other agents and maintains data cache.
     """
     
-    def __init__(self, config: dict, communicator):
+    def __init__(self, agent_id_or_config, communicator=None, **kwargs):
         """
         Initialize the DataAgent.
 
         Args:
-            config: Configuration dictionary containing:
-                - api_key: Polygon API key
-                - config_path: Optional path to config file
+            agent_id_or_config: Either a string agent_id or a configuration dictionary
             communicator: Communication manager for inter-agent messaging
+            **kwargs: Additional configuration parameters including:
+                - api_key: Polygon API key
+                - data_config: Data configuration settings
+                - base_config: Base configuration dictionary
         """
-        super().__init__(config, communicator)
+        # Initialize base agent
+        super().__init__(agent_id_or_config, communicator)
         
         # Extract configuration
-        self.api_key = config.get('api_key')
-        config_path = config.get('config_path')
+        base_config = kwargs.get('base_config', {})
+        data_config = kwargs.get('data_config', {})
+        self.api_key = kwargs.get('api_key') or base_config.get('api_keys', {}).get('polygon')
         
-        # Load configuration
-        self.config = _load_config(config_path)
+        # Merge configurations
+        self.config = {**base_config, **data_config}
         
-        # Initialize API client
+        # Initialize Polygon API client
+        self.polygon_api = None
         if self.api_key:
             try:
-                self.api = PolygonAPI(api_key=self.api_key)
+                self.polygon_api = PolygonAPI(api_key=self.api_key)
+                logger.info("Successfully initialized Polygon API client")
             except Exception as e:
                 logger.error(f"Failed to initialize Polygon API: {e}")
-                self.api = self._create_dummy_data_provider()
         else:
-            logger.warning("No API key provided, using dummy data provider")
-            self.api = self._create_dummy_data_provider()
+            logger.error("No Polygon API key provided in config")
         
         # Initialize data storage
         self.data_cache = {}
         self.last_update = {}
         self.update_thread = None
         self.running = False
-        self.mode = config.get('mode', 'live')  # 添加 mode 属性，默认为 'live'
-        self.stock_data = {}  # 添加缺失的属性
-        self.news_data = pd.DataFrame()  # 添加缺失的属性
-        self.data_lock = threading.Lock()  # 添加缺失的属性
-        self.results = {  # 添加缺失的属性
+        self.mode = self.config.get('mode', 'live')
+        self.stock_data = {}
+        self.news_data = pd.DataFrame()
+        self.data_lock = threading.Lock()
+        self.results = {
             'metadata': {},
             'market_data': {},
         }
@@ -110,22 +116,28 @@ class DataAgent(BaseAgent):
         )
         self.last_fetch_time = None
         
-        # Register message handlers
-        self._register_handlers()
-        
-        logger.info("DataAgent initialized successfully")
+        logger.info(f"DataAgent {self.agent_id} initialized successfully")
 
-    def _register_handlers(self):
+    async def initialize(self):
+        """
+        Asynchronously initialize the agent.
+        This method should be called after construction to complete async initialization.
+        """
+        # Register message handlers
+        await self._register_handlers()
+        return True
+
+    async def _register_handlers(self):
         """
         Register handlers for incoming requests.
         """
         if self.communicator:
             # Register handlers for specific request types
-            self.communicator.register_request_handler(
+            await self.communicator.register_request_handler(
                 self.agent_id, "get_stock_data", self._handle_stock_data_request)
-            self.communicator.register_request_handler(
+            await self.communicator.register_request_handler(
                 self.agent_id, "get_market_news", self._handle_news_request)
-            self.communicator.register_request_handler(
+            await self.communicator.register_request_handler(
                 self.agent_id, "store_agent_result", self._handle_store_result_request)
 
     async def start(self):
@@ -223,78 +235,84 @@ class DataAgent(BaseAgent):
             days_back: 获取多少天前的数据
         """
         try:
-            # 记录数据获取时间
             self.last_fetch_time = datetime.now()
             
-            # 使用默认值
             if tickers is None:
                 tickers = self.config.get('default_tickers', [])
             if timespan is None:
-                timespan = self.config.get('default_timespan', 'hour')  # 默认使用小时数据
+                timespan = self.config.get('default_timespan', 'hour')
             if days_back is None:
-                days_back = self.config.get('data_history_days', 7)  # 默认获取7天数据
+                days_back = self.config.get('data_history_days', 7)
             
-            # 计算日期范围
-            end_date = datetime.now().date() - timedelta(days=1)  # 使用昨天作为结束日期
+            end_date = datetime.now().date()
             start_date = end_date - timedelta(days=days_back)
             
-            # 格式化日期
             start_date_str = start_date.strftime('%Y-%m-%d')
             end_date_str = end_date.strftime('%Y-%m-%d')
             
             logger.info(f"Fetching {timespan} data for {len(tickers)} tickers from {start_date_str} to {end_date_str}")
             
-            # 存储所有数据和元数据
             all_data = {}
             all_metadata = {}
             failed_tickers = []
             
             for ticker in tickers:
                 try:
+                    if not self.polygon_api:
+                        raise ValueError("Polygon API client not initialized")
+                        
                     with self.data_lock:
-                        df, metadata = await self.api.get_stock_bars(
+                        data, metadata = await self.polygon_api.get_stock_bars(
                             ticker=ticker,
                             timespan=timespan,
                             from_date=start_date_str,
                             to_date=end_date_str
                         )
                         
-                        if df.empty:
-                            logger.warning(f"No data available for {ticker}")
-                            failed_tickers.append(ticker)
+                        if data is None:
+                            logger.warning(f"No data available for {ticker}: {metadata.get('error', 'Unknown error')}")
+                            failed_tickers.append({
+                                'ticker': ticker,
+                                'reason': metadata.get('error', 'No data available'),
+                                'status': metadata.get('status', 'error')
+                            })
+                            continue
+                        
+                        if isinstance(data, pd.DataFrame) and data.empty:
+                            logger.warning(f"Empty data received for {ticker}")
+                            failed_tickers.append({
+                                'ticker': ticker,
+                                'reason': 'Empty dataset',
+                                'status': metadata.get('status', 'error')
+                            })
                             continue
                         
                         # 存储数据
-                        all_data[ticker] = df
+                        all_data[ticker] = data
                         all_metadata[ticker] = metadata
                         
                         # 更新内部存储
                         self.stock_data[ticker] = {
-                            'data': df,
+                            'data': data,
                             'metadata': metadata,
                             'last_update': datetime.now().isoformat()
                         }
                         
-                        # 添加到结果存储
+                        # 更新结果存储
                         self.results['market_data'][ticker] = {
-                            'data': metadata['data'],  # 使用已经序列化的数据
-                            'metadata': {
-                                'status': metadata['status'],
-                                'count': metadata['count'],
-                                'first_timestamp': metadata['first_timestamp'],
-                                'last_timestamp': metadata['last_timestamp'],
-                                'query_count': metadata.get('query_count', 0),
-                                'results_count': metadata.get('results_count', 0),
-                                'last_update': datetime.now().isoformat()
-                            }
+                            'data': data,
+                            'metadata': metadata
                         }
                         
-                        # 短暂暂停以避免触发速率限制
                         await asyncio.sleep(0.1)
                         
                 except Exception as e:
                     logger.error(f"Error fetching data for {ticker}: {str(e)}")
-                    failed_tickers.append(ticker)
+                    failed_tickers.append({
+                        'ticker': ticker,
+                        'reason': str(e),
+                        'status': 'error'
+                    })
                     continue
             
             # 更新结果存储的元数据
@@ -315,13 +333,13 @@ class DataAgent(BaseAgent):
             
             # 通知其他代理数据已更新
             if all_data:
-                self._notify_data_update('stock_data_updated')
+                await self._notify_data_update('stock_data_updated')
             
             return all_data
             
         except Exception as e:
             logger.error(f"Error in fetch_stock_data: {str(e)}", exc_info=True)
-            raise
+            return {}
 
     def fetch_options_data(self,
                            tickers: Optional[List[str]] = None,
@@ -354,7 +372,7 @@ class DataAgent(BaseAgent):
                 logger.info(f"Fetching options data for {ticker}")
 
                 # Get available options contracts
-                contracts_df = self.api.get_options_contracts(
+                contracts_df = self.polygon_api.get_options_contracts(
                     underlying_ticker=ticker,
                     limit=100  # Adjust based on needs
                 )
@@ -406,7 +424,7 @@ class DataAgent(BaseAgent):
             # Fetch general market news if no tickers specified
             if not tickers:
                 logger.info("Fetching general market news")
-                news_df = self.api.get_market_news(
+                news_df = self.polygon_api.get_market_news(
                     limit=limit,
                     from_date=from_date
                 )
@@ -417,7 +435,7 @@ class DataAgent(BaseAgent):
             else:  # Fetch news for each ticker
                 for ticker in tickers:
                     logger.info(f"Fetching news for {ticker}")
-                    news_df = self.api.get_market_news(
+                    news_df = self.polygon_api.get_market_news(
                         ticker=ticker,
                         limit=limit // len(tickers),  # Distribute limit across tickers
                         from_date=from_date
@@ -467,7 +485,7 @@ class DataAgent(BaseAgent):
         """
         try:
             logger.info(f"Fetching related companies for {ticker}")
-            related_data = self.api.get_related_companies(ticker)
+            related_data = self.polygon_api.get_related_companies(ticker)
 
             if related_data and related_data.get('status') != 'error':
                 # Save related companies data
@@ -661,7 +679,7 @@ class DataAgent(BaseAgent):
             logger.error("Invalid result type or data in store result request")
             return {"error": "Invalid result type or data"}
 
-    def _notify_data_update(self, update_type: str):
+    async def _notify_data_update(self, update_type: str):
         """
         通知其他代理数据已更新。
         
@@ -700,39 +718,36 @@ class DataAgent(BaseAgent):
                 
                 for analysis_type, info in topics.items():
                     try:
-                        message = Message(
-                            sender_id=self.agent_id,
-                            receiver_id=info['receiver'],
-                            message_type=MessageType.DATA,
-                            content={
+                        # 发布到特定 topic
+                        await self.communicator.publish(
+                            topic=info['topic'],
+                            message={
                                 **base_content,
-                                'analysis_type': analysis_type
+                                'analysis_type': analysis_type,
+                                'sender_id': self.agent_id,
+                                'receiver_id': info['receiver'],
+                                'message_type': MessageType.DATA
                             }
                         )
-                        
-                        # 发布到特定 topic
-                        self.communicator.publish(info['topic'], message)
                         logger.info(f"Published market data update to {info['topic']}")
                     except Exception as e:
                         logger.error(f"Error publishing to {info['topic']}: {e}")
                         continue
             
-            # 创建通知消息
-            notification = Message(
-                sender_id=self.agent_id,
-                receiver_id="all",
-                message_type=MessageType.EVENT,
-                content={
+            # 发布通知到系统状态 topic
+            await self.communicator.publish(
+                topic='system_status',
+                message={
                     'event_type': 'data_update',
                     'update_type': update_type,
                     'agent_id': self.agent_id,
                     'timestamp': datetime.now().isoformat(),
-                    'fetch_time': self.last_fetch_time.isoformat() if self.last_fetch_time else None
+                    'fetch_time': self.last_fetch_time.isoformat() if self.last_fetch_time else None,
+                    'sender_id': self.agent_id,
+                    'receiver_id': 'all',
+                    'message_type': MessageType.EVENT
                 }
             )
-            
-            # 发布通知到系统状态 topic
-            self.communicator.publish('system_status', notification)
             logger.info(f"Published data update notification for {update_type}")
             
         except Exception as e:
@@ -941,32 +956,27 @@ class DataAgent(BaseAgent):
         将结果转换为可JSON序列化的格式。
         """
         def convert_to_serializable(obj):
-            try:
-                if isinstance(obj, (pd.Timestamp, datetime, date)):
-                    return obj.isoformat()
-                elif isinstance(obj, pd.DataFrame):
-                    return obj.to_dict('records')
-                elif isinstance(obj, set):
-                    return list(obj)
-                elif isinstance(obj, dict):
-                    return {k: convert_to_serializable(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [convert_to_serializable(item) for item in obj]
-                elif isinstance(obj, (np.int64, np.int32, np.float64, np.float32)):
-                    return obj.item()
-                elif pd.isna(obj):
-                    return None
-                elif hasattr(obj, 'to_dict'):  # 处理其他可能的 pandas 对象
-                    return obj.to_dict()
-                elif hasattr(obj, '__dict__'):  # 处理自定义对象
-                    return convert_to_serializable(obj.__dict__)
-                return str(obj)  # 对于其他类型，转换为字符串
-            except Exception as e:
-                logger.error(f"Error converting object {type(obj)} to serializable format: {e}")
-                return str(obj)
+            if isinstance(obj, (pd.Timestamp, datetime, date)):
+                return obj.isoformat()
+            elif isinstance(obj, pd.DataFrame):
+                return obj.to_dict('records')
+            elif isinstance(obj, set):
+                return list(obj)
+            elif isinstance(obj, dict):
+                return {k: convert_to_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_to_serializable(item) for item in obj]
+            elif isinstance(obj, (np.int64, np.int32, np.float64, np.float32)):
+                return obj.item()
+            elif pd.isna(obj):
+                return None
+            elif hasattr(obj, 'to_dict'):
+                return obj.to_dict()
+            elif hasattr(obj, '__dict__'):
+                return convert_to_serializable(obj.__dict__)
+            return str(obj)
 
         try:
-            # 深拷贝结果以避免修改原始数据
             results_copy = {
                 'metadata': self.results.get('metadata', {}),
                 'market_data': {},
@@ -985,12 +995,10 @@ class DataAgent(BaseAgent):
                             'metadata': convert_to_serializable(data.get('metadata', {}))
                         }
 
-            serialized_results = convert_to_serializable(results_copy)
-            return serialized_results
+            return convert_to_serializable(results_copy)
 
         except Exception as e:
             logger.error(f"Error converting results to serializable format: {e}", exc_info=True)
-            # 返回一个基本的错误结果
             return {
                 'error': str(e),
                 'timestamp': datetime.now().isoformat(),
